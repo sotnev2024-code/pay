@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 import logging
 
+# Python 3.8 + uvloop: ensure default event loop policy so main thread has a loop
+asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+
 import uvicorn
 from aiogram import types
 from fastapi import Request
