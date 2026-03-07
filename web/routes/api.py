@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api")
 
 # ── Telegram initData validation ─────────────────────────────────────
 
-def _validate_init_data(init_data: str) -> dict | None:
+def _validate_init_data(init_data: str) -> Optional[dict]:
     """Validate Telegram WebApp initData HMAC signature. Returns parsed data or None."""
     try:
         parsed = parse_qs(init_data, keep_blank_values=True)

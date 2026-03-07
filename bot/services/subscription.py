@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +10,7 @@ from bot.keyboards.inline import channel_link_kb
 from bot.services.invite_links import create_invite_link, revoke_invite_link
 from config import settings
 from database import crud
-from database.models import PaymentStatus, Subscription
+from database.models import PaymentStatus, Subscription, User
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +21,12 @@ async def activate_subscription(
     user_id: int,
     tariff_id: int,
     payment_id: int,
-) -> Subscription | None:
+) -> Optional[Subscription]:
     tariff = await crud.get_tariff_by_id(session, tariff_id)
     if tariff is None:
         return None
 
-    user = await session.get(crud.User, user_id)
+    user = await session.get(User, user_id)
     if user is None:
         return None
 
@@ -77,7 +78,7 @@ async def deactivate_subscription(
     await crud.expire_subscription(session, sub.id)
 
     try:
-        user = await session.get(crud.User, sub.user_id)
+        user = await session.get(User, sub.user_id)
         if user:
             await bot.send_message(
                 user.telegram_id,

@@ -11,8 +11,11 @@ from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards.inline import admin_menu_kb, back_admin_kb
 from config import settings
+from sqlalchemy import select
+
 from database import crud
 from database.engine import async_session
+from database.models import User
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -173,9 +176,7 @@ async def handle_broadcast(message: Message, state: FSMContext) -> None:
     from bot.bot_instance import bot
 
     async with async_session() as session:
-        result = await session.execute(
-            __import__("sqlalchemy").select(crud.User.telegram_id)
-        )
+        result = await session.execute(select(User.telegram_id))
         user_ids = [row[0] for row in result.all()]
 
     sent = 0

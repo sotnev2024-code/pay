@@ -23,9 +23,9 @@ from database.models import (
 async def get_or_create_user(
     session: AsyncSession,
     telegram_id: int,
-    username: str | None = None,
+    username: Optional[str] = None,
     first_name: str = "",
-    language_code: str | None = None,
+    language_code: Optional[str] = None,
     is_admin: bool = False,
 ) -> User:
     stmt = select(User).where(User.telegram_id == telegram_id)
@@ -51,7 +51,7 @@ async def get_or_create_user(
 
 async def get_user_by_telegram_id(
     session: AsyncSession, telegram_id: int
-) -> User | None:
+) -> Optional[User]:
     stmt = select(User).where(User.telegram_id == telegram_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
@@ -75,7 +75,7 @@ async def get_active_tariffs(session: AsyncSession) -> Sequence[Tariff]:
     return result.scalars().all()
 
 
-async def get_tariff_by_id(session: AsyncSession, tariff_id: int) -> Tariff | None:
+async def get_tariff_by_id(session: AsyncSession, tariff_id: int) -> Optional[Tariff]:
     return await session.get(Tariff, tariff_id)
 
 
@@ -89,7 +89,7 @@ async def create_tariff(session: AsyncSession, **kwargs) -> Tariff:
 
 async def update_tariff(
     session: AsyncSession, tariff_id: int, **kwargs
-) -> Tariff | None:
+) -> Optional[Tariff]:
     tariff = await session.get(Tariff, tariff_id)
     if tariff is None:
         return None
@@ -113,7 +113,7 @@ async def delete_tariff(session: AsyncSession, tariff_id: int) -> bool:
 
 async def get_active_subscription(
     session: AsyncSession, user_id: int
-) -> Subscription | None:
+) -> Optional[Subscription]:
     stmt = (
         select(Subscription)
         .options(selectinload(Subscription.tariff))
@@ -131,9 +131,9 @@ async def create_subscription(
     session: AsyncSession,
     user_id: int,
     tariff_id: int,
-    duration_days: int | None,
-    invite_link: str | None = None,
-    channel_id: int | None = None,
+    duration_days: Optional[int],
+    invite_link: Optional[str] = None,
+    channel_id: Optional[int] = None,
 ) -> Subscription:
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(days=duration_days) if duration_days else None
@@ -212,9 +212,9 @@ async def create_payment(
     provider: str,
     amount: float,
     currency: str,
-    provider_payment_id: str | None = None,
-    promo_code_id: int | None = None,
-    payload: dict | None = None,
+    provider_payment_id: Optional[str] = None,
+    promo_code_id: Optional[int] = None,
+    payload: Optional[dict] = None,
 ) -> Payment:
     payment = Payment(
         user_id=user_id,
@@ -236,8 +236,8 @@ async def update_payment_status(
     session: AsyncSession,
     payment_id: int,
     status: PaymentStatus,
-    provider_payment_id: str | None = None,
-) -> Payment | None:
+    provider_payment_id: Optional[str] = None,
+) -> Optional[Payment]:
     payment = await session.get(Payment, payment_id)
     if payment is None:
         return None
@@ -251,7 +251,7 @@ async def update_payment_status(
 
 async def get_payment_by_provider_id(
     session: AsyncSession, provider: str, provider_payment_id: str
-) -> Payment | None:
+) -> Optional[Payment]:
     stmt = select(Payment).where(
         Payment.provider == provider,
         Payment.provider_payment_id == provider_payment_id,
@@ -274,7 +274,7 @@ async def get_recent_payments(
 
 
 async def get_revenue(
-    session: AsyncSession, since: datetime | None = None
+    session: AsyncSession, since: Optional[datetime] = None
 ) -> float:
     stmt = select(Payment).where(Payment.status == PaymentStatus.SUCCESS)
     if since:
@@ -287,8 +287,8 @@ async def get_revenue(
 # ── Promo Codes ──────────────────────────────────────────────────────
 
 async def validate_promo_code(
-    session: AsyncSession, code: str, tariff_id: int | None = None
-) -> PromoCode | None:
+    session: AsyncSession, code: str, tariff_id: Optional[int] = None
+) -> Optional[PromoCode]:
     now = datetime.now(timezone.utc)
     stmt = select(PromoCode).where(
         PromoCode.code == code.upper(),

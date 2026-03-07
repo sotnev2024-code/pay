@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
+from typing import Dict, List, Optional
 
 from sqlalchemy import (
     BigInteger,
@@ -47,14 +48,14 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
-    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str] = mapped_column(String(255), default="")
-    language_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    language_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    subscriptions: Mapped[list[Subscription]] = relationship(back_populates="user")
-    payments: Mapped[list[Payment]] = relationship(back_populates="user")
+    subscriptions: Mapped[List[Subscription]] = relationship(back_populates="user")
+    payments: Mapped[List[Payment]] = relationship(back_populates="user")
 
 
 class Tariff(Base):
@@ -66,17 +67,17 @@ class Tariff(Base):
     price_stars: Mapped[int] = mapped_column(Integer, default=0)
     price_rub: Mapped[float] = mapped_column(Float, default=0.0)
     price_usd: Mapped[float] = mapped_column(Float, default=0.0)
-    duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     tariff_type: Mapped[TariffType] = mapped_column(
         Enum(TariffType), default=TariffType.SUBSCRIPTION
     )
     level: Mapped[int] = mapped_column(Integer, default=0)
-    features: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    features: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
-    subscriptions: Mapped[list[Subscription]] = relationship(back_populates="tariff")
-    payments: Mapped[list[Payment]] = relationship(back_populates="tariff")
+    subscriptions: Mapped[List[Subscription]] = relationship(back_populates="tariff")
+    payments: Mapped[List[Payment]] = relationship(back_populates="tariff")
 
 
 class Subscription(Base):
@@ -87,9 +88,9 @@ class Subscription(Base):
     tariff_id: Mapped[int] = mapped_column(ForeignKey("tariffs.id"))
     status: Mapped[SubStatus] = mapped_column(Enum(SubStatus), default=SubStatus.ACTIVE)
     started_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    invite_link: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    channel_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    invite_link: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     notified_3d: Mapped[bool] = mapped_column(Boolean, default=False)
     notified_1d: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -104,21 +105,21 @@ class Payment(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     tariff_id: Mapped[int] = mapped_column(ForeignKey("tariffs.id"))
     provider: Mapped[str] = mapped_column(String(50))
-    provider_payment_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    provider_payment_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     amount: Mapped[float] = mapped_column(Float)
     currency: Mapped[str] = mapped_column(String(10))
     status: Mapped[PaymentStatus] = mapped_column(
         Enum(PaymentStatus), default=PaymentStatus.PENDING
     )
-    promo_code_id: Mapped[int | None] = mapped_column(
+    promo_code_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("promo_codes.id"), nullable=True
     )
-    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    payload: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped[User] = relationship(back_populates="payments")
     tariff: Mapped[Tariff] = relationship(back_populates="payments")
-    promo_code: Mapped[PromoCode | None] = relationship()
+    promo_code: Mapped[Optional[PromoCode]] = relationship()
 
 
 class PromoCode(Base):
@@ -128,10 +129,10 @@ class PromoCode(Base):
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     discount_percent: Mapped[int] = mapped_column(Integer, default=0)
     discount_amount: Mapped[float] = mapped_column(Float, default=0.0)
-    max_uses: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     used_count: Mapped[int] = mapped_column(Integer, default=0)
-    valid_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    tariff_id: Mapped[int | None] = mapped_column(
+    valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    tariff_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("tariffs.id"), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

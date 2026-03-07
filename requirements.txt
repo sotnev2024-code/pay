@@ -1,3 +1,4 @@
+# Python 3.8 compatible
 aiogram>=3.13.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
@@ -5,7 +6,7 @@ aiosqlite>=0.20.0
 sqlalchemy[asyncio]>=2.0.36
 pydantic-settings>=2.6.0
 apscheduler>=3.10.4
-aiohttp>=3.11.0
+aiohttp>=3.9.0,<3.11.0
 yookassa>=3.4.0
 aiocryptopay>=0.4.3
 httpx>=0.28.0

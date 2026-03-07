@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict, List
 
 from config import settings
 from payments.base import PaymentProvider
@@ -16,14 +16,14 @@ class PaymentManager:
     def get(self, name: str) -> PaymentProvider:
         provider = self._providers.get(name)
         if provider is None:
-            raise ValueError(f"Payment provider '{name}' is not registered")
+            raise ValueError("Payment provider '%s' is not registered" % name)
         return provider
 
     @property
-    def available(self) -> list[str]:
+    def available(self) -> List[str]:
         return list(self._providers.keys())
 
-    def provider_display_info(self) -> list[dict]:
+    def provider_display_info(self) -> List[Dict[str, Any]]:
         mapping = {
             "stars": {"label": "Telegram Stars", "icon": "⭐", "currency": "XTR"},
             "yookassa": {"label": "ЮKassa (карта)", "icon": "💳", "currency": "RUB"},

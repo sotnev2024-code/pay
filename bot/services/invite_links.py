@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from aiogram import Bot
 
@@ -12,8 +13,8 @@ async def create_invite_link(
     bot: Bot,
     channel_id: int,
     user_name: str = "",
-    expire_hours: int | None = None,
-) -> str | None:
+    expire_hours: Optional[int] = None,
+) -> Optional[str]:
     try:
         kwargs: dict = {
             "chat_id": channel_id,

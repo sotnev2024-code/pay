@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Optional
 
 from payments.base import PaymentProvider, PaymentResult, PaymentStatusEnum, WebhookResult
 
@@ -40,7 +41,7 @@ class StarsProvider(PaymentProvider):
             pay_url=invoice_link,
         )
 
-    async def verify_webhook(self, data: dict, headers: dict | None = None) -> WebhookResult:
+    async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         payload_str = data.get("invoice_payload", "{}")
         try:
             payload = json.loads(payload_str)

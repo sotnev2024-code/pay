@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Optional
 
 from yookassa import Configuration, Payment as YKPayment
 
@@ -48,7 +49,7 @@ class YooKassaProvider(PaymentProvider):
             raw={"provider_id": payment.id},
         )
 
-    async def verify_webhook(self, data: dict, headers: dict | None = None) -> WebhookResult:
+    async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         obj = data.get("object", {})
         metadata = obj.get("metadata", {})
         yk_status = obj.get("status", "")

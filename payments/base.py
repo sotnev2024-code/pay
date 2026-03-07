@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 
 class PaymentStatusEnum(str, Enum):
@@ -18,19 +18,19 @@ class PaymentResult:
     """Returned by create_payment — tells the frontend how to proceed."""
     payment_id: int
     provider: str
-    pay_url: str | None = None
-    invoice_link: str | None = None
-    raw: dict = field(default_factory=dict)
+    pay_url: Optional[str] = None
+    invoice_link: Optional[str] = None
+    raw: Dict = field(default_factory=dict)
 
 
 @dataclass
 class WebhookResult:
     """Returned by verify_webhook after signature validation."""
     success: bool
-    provider_payment_id: str | None = None
-    internal_payment_id: int | None = None
+    provider_payment_id: Optional[str] = None
+    internal_payment_id: Optional[int] = None
     status: PaymentStatusEnum = PaymentStatusEnum.PENDING
-    raw: dict = field(default_factory=dict)
+    raw: Dict = field(default_factory=dict)
 
 
 class PaymentProvider(ABC):
@@ -49,7 +49,7 @@ class PaymentProvider(ABC):
         ...
 
     @abstractmethod
-    async def verify_webhook(self, data: dict, headers: dict | None = None) -> WebhookResult:
+    async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         ...
 
     @abstractmethod

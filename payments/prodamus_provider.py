@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from typing import Optional
 from urllib.parse import urlencode
 
 from config import settings
@@ -47,7 +48,7 @@ class ProdamusProvider(PaymentProvider):
             pay_url=url,
         )
 
-    async def verify_webhook(self, data: dict, headers: dict | None = None) -> WebhookResult:
+    async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         received_sign = data.pop("signature", "")
         body_str = urlencode(data, doseq=True)
         expected_sign = _hmac_sign(body_str, settings.prodamus_secret)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from typing import Optional
 from urllib.parse import urlencode
 
 from config import settings
@@ -52,7 +53,7 @@ class RobokassaProvider(PaymentProvider):
             pay_url=url,
         )
 
-    async def verify_webhook(self, data: dict, headers: dict | None = None) -> WebhookResult:
+    async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         out_sum = data.get("OutSum", "")
         inv_id = data.get("InvId", "")
         sig = data.get("SignatureValue", "")

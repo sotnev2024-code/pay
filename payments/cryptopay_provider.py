@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Optional
 
 from config import settings
 from payments.base import PaymentProvider, PaymentResult, PaymentStatusEnum, WebhookResult
@@ -47,7 +48,7 @@ class CryptoPayProvider(PaymentProvider):
         finally:
             await client.close()
 
-    async def verify_webhook(self, data: dict, headers: dict | None = None) -> WebhookResult:
+    async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         client = self._get_client()
         try:
             body_str = data.get("_raw_body", "")
