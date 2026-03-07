@@ -134,7 +134,7 @@ def run_webhook() -> None:
         await dp.feed_update(bot, update)
         return {"ok": True}
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=settings.port)
 
 
 # ── Polling mode (local development) ─────────────────────────────────
@@ -152,7 +152,7 @@ async def run_polling() -> None:
 
     # Start FastAPI in background (for Mini App API, if needed via ngrok)
     app = create_app()
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+    config = uvicorn.Config(app, host="0.0.0.0", port=settings.port, log_level="info")
     server = uvicorn.Server(config)
 
     async def start_web():
@@ -161,8 +161,8 @@ async def run_polling() -> None:
     web_task = asyncio.create_task(start_web())
 
     logger.info("Starting bot in POLLING mode...")
-    logger.info("FastAPI running at http://localhost:8000")
-    logger.info("Mini App available at http://localhost:8000/mini_app/")
+    logger.info("FastAPI running at http://localhost:%s", settings.port)
+    logger.info("Mini App available at http://localhost:%s/mini_app/", settings.port)
 
     try:
         await dp.start_polling(bot)

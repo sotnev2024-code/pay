@@ -1,13 +1,53 @@
 # Развёртывание на VPS
 
-Подходит для Ubuntu/Debian (или аналогичный Linux с `apt`).
+Подходит для Ubuntu/Debian. **Caddy не используется** — домен и HTTPS настраиваете сами (nginx или другой прокси). Бот просто слушает порт из `.env` (по умолчанию 8000).
 
-## 1. Подготовка репозитория на GitHub
+## Быстрый старт (пара команд)
 
-- Залейте проект в GitHub (создайте репозиторий и сделайте `git push`).
-- Убедитесь, что в репозитории есть `.env.example` (без секретов), но **нет** файла `.env`.
+На сервере, где уже привязан домен и настроен nginx (или другой прокси):
 
-## 2. Подключение к VPS
+**1)** Клонировать и развернуть одной командой (подставьте свой репозиторий):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/sotnev2024-code/pay/main/scripts/deploy-vps.sh | bash -s -- https://github.com/sotnev2024-code/pay.git /opt/pay
+```
+
+**2)** Отредактировать `.env` и в nginx добавить прокси на порт бота:
+
+```bash
+nano /opt/pay/.env
+# Заполнить: BOT_TOKEN, ADMIN_IDS, WEBAPP_URL, WEBHOOK_URL, CHANNEL_IDS, PORT (например 8001)
+```
+
+В конфиге nginx для вашего домена добавьте (порт должен совпадать с `PORT` из `.env`):
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Перезапустить бота:
+
+```bash
+sudo systemctl restart pay-bot
+```
+
+Готово. Mini App: `https://ваш-домен/mini_app/`.
+
+---
+
+## Подробно
+
+### 1. Репозиторий на GitHub
+
+- Проект в GitHub, в репозитории есть `.env.example`, файла `.env` в репо нет.
+
+### 2. Подключение к VPS
 
 ```bash
 ssh root@ВАШ_IP
@@ -15,81 +55,83 @@ ssh root@ВАШ_IP
 ssh ubuntu@ВАШ_IP
 ```
 
-## 3. Вариант A: Скачать и запустить скрипт одной командой
+### 3. Запуск скрипта деплоя
 
-Подставьте свой репозиторий и папку установки. **Запускайте от обычного пользователя** (не root) — скрипт сам запросит `sudo` для установки пакетов и systemd:
+**Вариант A — одной командой (скрипт сам клонирует):**
 
-```bash
-curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/scripts/deploy-vps.sh | bash -s -- https://github.com/YOUR_USERNAME/YOUR_REPO.git /opt/pay
-```
-
-Пример:
+Запускайте от обычного пользователя; скрипт запросит `sudo` для пакетов и systemd.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/username/pay-bot/main/scripts/deploy-vps.sh | bash -s -- https://github.com/username/pay-bot.git /opt/pay
+curl -sSL https://raw.githubusercontent.com/sotnev2024-code/pay/main/scripts/deploy-vps.sh | bash -s -- https://github.com/sotnev2024-code/pay.git /opt/pay
 ```
 
-Если папка `/opt` не существует, скрипт создаст её через `sudo` и отдаст владение вашему пользователю.
-
-Скрипт сам:
-- клонирует репозиторий в `/opt/pay`;
-- установит Python, venv, Caddy (если нет);
-- создаст `.venv` и поставит зависимости;
-- создаст `.env` из `.env.example` и предложит его отредактировать;
-- создаст Caddyfile по домену из `.env`;
-- создаст и включит systemd-сервис `pay-bot`;
-- по желанию запустит Caddy и бота.
-
-Дальше нужно только отредактировать `.env` (BOT_TOKEN, ADMIN_IDS, WEBAPP_URL, WEBHOOK_URL, CHANNEL_IDS) и при необходимости перезапустить сервис.
-
-## 4. Вариант B: Клонировать вручную и запустить скрипт
+**Вариант B — клонировать вручную, потом скрипт:**
 
 ```bash
-sudo mkdir -p /opt
-sudo chown "$USER" /opt
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git /opt/pay
-cd /opt/pay
-chmod +x scripts/deploy-vps.sh
-./scripts/deploy-vps.sh
+sudo mkdir -p /opt && sudo chown "$USER" /opt
+git clone https://github.com/sotnev2024-code/pay.git /opt/pay
+cd /opt/pay && chmod +x scripts/deploy-vps.sh && ./scripts/deploy-vps.sh
 ```
 
-(Без аргументов скрипт работает в текущей папке и не клонирует репозиторий.)
+Скрипт:
+- ставит Python 3, venv, pip, git (без Caddy);
+- создаёт `.venv` и ставит зависимости;
+- создаёт `.env` из `.env.example` (USE_POLLING=false), предлагает редактирование;
+- создаёт и включает systemd-сервис `pay-bot`;
+- по желанию сразу запускает бота.
 
-## 5. Настройка .env на сервере
-
-После первого запуска скрипта отредактируйте `.env`:
+### 4. Настройка .env
 
 ```bash
 nano /opt/pay/.env
 ```
 
-Обязательно укажите:
-
+Обязательно:
 - `BOT_TOKEN` — токен от @BotFather  
-- `ADMIN_IDS` — ваш Telegram ID (можно несколько через запятую)  
+- `ADMIN_IDS` — ваш Telegram ID (несколько через запятую)  
 - `WEBAPP_URL` — например `https://pay.plus-shop.ru/mini_app/`  
 - `WEBHOOK_URL` — например `https://pay.plus-shop.ru`  
 - `CHANNEL_IDS` — ID канала (например `-1001234567890`)  
-- `USE_POLLING=false` — для продакшена оставьте так  
+- `PORT` — порт приложения (например `8001`), на него будет проксировать nginx  
 
-Сохраните (Ctrl+O, Enter, Ctrl+X), затем перезапустите бота:
+### 5. Проксирование домена на бота
+
+У вас уже есть домен и веб-сервер (nginx и т.п.). Нужно направить запросы на порт бота.
+
+Пример для nginx (порт должен совпадать с `PORT` в `.env`):
+
+```nginx
+server {
+    server_name pay.plus-shop.ru;
+    # ... ваш ssl и прочее ...
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Перезагрузите nginx и перезапустите бота:
 
 ```bash
+sudo nginx -t && sudo systemctl reload nginx
 sudo systemctl restart pay-bot
 ```
 
-## 6. Полезные команды
+### 6. Полезные команды
 
-| Действие              | Команда |
-|-----------------------|--------|
-| Статус бота           | `sudo systemctl status pay-bot` |
+| Действие                | Команда |
+|-------------------------|--------|
+| Статус бота             | `sudo systemctl status pay-bot` |
 | Логи в реальном времени | `journalctl -u pay-bot -f` |
-| Перезапуск бота       | `sudo systemctl restart pay-bot` |
-| Остановка             | `sudo systemctl stop pay-bot` |
-| Статус Caddy          | `sudo systemctl status caddy` |
-| Перезапуск Caddy      | `sudo systemctl restart caddy` |
+| Перезапуск              | `sudo systemctl restart pay-bot` |
+| Остановка               | `sudo systemctl stop pay-bot` |
 
-## 7. Обновление с GitHub
+### 7. Обновление с GitHub
 
 ```bash
 cd /opt/pay
@@ -98,7 +140,8 @@ git pull
 sudo systemctl restart pay-bot
 ```
 
-## 8. DNS и порты
+### 8. DNS и порты
 
-- В DNS для вашего домена (например, `pay.plus-shop.ru`) должна быть A-запись на **внешний IP вашего VPS**.
-- На VPS порты **80** и **443** должны быть открыты (в панели хостинга / firewall). Caddy сам получит сертификат Let's Encrypt при первом запросе по HTTPS.
+- В DNS для домена — A-запись на IP VPS.
+- Порты 80/443 открыты для nginx (или вашего прокси). Сертификаты и HTTPS настраиваете вы (например certbot для nginx).
+- Бот слушает только localhost:PORT, наружу его не пробрасывайте.

@@ -60,6 +60,8 @@ class Settings(BaseSettings):
 
     use_polling: bool = True
 
+    port: int = 8000
+
     db_url: str = f"sqlite+aiosqlite:///{BASE_DIR / 'data.db'}"
 
     @property
