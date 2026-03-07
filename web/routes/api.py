@@ -83,25 +83,31 @@ class PromoValidateRequest(BaseModel):
 
 # ── Endpoints ────────────────────────────────────────────────────────
 
+def _tariff_to_dict(t) -> dict:
+    """Serialize tariff for API; handle enum and features robustly."""
+    tt = getattr(t.tariff_type, "value", t.tariff_type) if t.tariff_type else "subscription"
+    feats = t.features
+    if feats is not None and not isinstance(feats, list):
+        feats = list(feats.values()) if isinstance(feats, dict) else []
+    return {
+        "id": t.id,
+        "name": t.name,
+        "description": t.description or "",
+        "price_stars": t.price_stars,
+        "price_rub": t.price_rub,
+        "price_usd": t.price_usd,
+        "duration_days": t.duration_days,
+        "tariff_type": tt,
+        "level": t.level,
+        "features": feats or [],
+    }
+
+
 @router.get("/tariffs")
 async def get_tariffs():
     async with async_session() as session:
         tariffs = await crud.get_active_tariffs(session)
-        return [
-            {
-                "id": t.id,
-                "name": t.name,
-                "description": t.description,
-                "price_stars": t.price_stars,
-                "price_rub": t.price_rub,
-                "price_usd": t.price_usd,
-                "duration_days": t.duration_days,
-                "tariff_type": t.tariff_type.value,
-                "level": t.level,
-                "features": t.features,
-            }
-            for t in tariffs
-        ]
+        return [_tariff_to_dict(t) for t in tariffs]
 
 
 @router.get("/profile")
@@ -147,6 +153,7 @@ async def get_profile(request: Request):
                 "username": user.username,
                 "first_name": user.first_name,
                 "is_admin": user.is_admin,
+                "photo_url": tg_user.get("photo_url"),
             },
             "subscription": sub_data,
         }

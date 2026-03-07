@@ -33,28 +33,49 @@
 
     // ── Data Loading ──────────────────────────────────────────
 
+    function getFallbackUser() {
+        const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+        return u ? { first_name: u.first_name || 'Пользователь', photo_url: u.photo_url } : { first_name: 'Пользователь', photo_url: null };
+    }
+
     async function loadData() {
+        let profile = null;
+        let tariffs = [];
+        let providers = [];
+
         try {
-            const [tariffs, profile, providers] = await Promise.all([
-                API.getTariffs(),
-                API.getProfile(),
-                API.getProviders(),
-            ]);
-            state.tariffs   = tariffs;
-            state.profile   = profile;
-            state.providers = providers;
-
-            Components.renderUserCard(profile);
-            Components.renderTariffGrid(tariffs, onTariffSelect);
-            Components.renderProviderList(providers, onProviderSelect);
-
-            showScreen('profile');
+            profile = await API.getProfile();
         } catch (e) {
-            console.error('Load error:', e);
-            showScreen('profile');
-            var fallbackName = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name) ? tg.initDataUnsafe.user.first_name : 'Пользователь';
-            Components.renderUserCard({ user: { first_name: fallbackName }, subscription: null });
+            console.warn('Profile load failed:', e);
+            profile = { user: getFallbackUser(), subscription: null };
         }
+        if (!profile || !profile.user) {
+            profile = { user: getFallbackUser(), subscription: null };
+        }
+
+        try {
+            tariffs = await API.getTariffs();
+        } catch (e) {
+            console.warn('Tariffs load failed:', e);
+        }
+        if (!Array.isArray(tariffs)) tariffs = [];
+
+        try {
+            providers = await API.getProviders();
+        } catch (e) {
+            console.warn('Providers load failed:', e);
+        }
+        if (!Array.isArray(providers)) providers = [];
+
+        state.profile   = profile;
+        state.tariffs   = tariffs;
+        state.providers = providers;
+
+        Components.renderUserCard(profile, tg ? tg.initDataUnsafe : null);
+        Components.renderTariffGrid(tariffs, onTariffSelect);
+        Components.renderProviderList(providers, onProviderSelect);
+
+        showScreen('profile');
     }
 
     // ── Tariff Selection ──────────────────────────────────────

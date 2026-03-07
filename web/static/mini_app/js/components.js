@@ -3,11 +3,26 @@
  */
 const Components = (() => {
 
-    function renderUserCard(profile) {
-        const user = profile.user;
+    function renderUserCard(profile, initDataUnsafe) {
+        const user = profile.user || (initDataUnsafe && initDataUnsafe.user) || {};
         const sub  = profile.subscription;
+        const name = user.first_name || 'Пользователь';
+        const photoUrl = user.photo_url || (initDataUnsafe && initDataUnsafe.user && initDataUnsafe.user.photo_url);
 
-        document.getElementById('user-name').textContent = user?.first_name || 'Пользователь';
+        document.getElementById('user-name').textContent = name;
+
+        const avatarEl = document.getElementById('user-avatar');
+        if (photoUrl) {
+            avatarEl.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = photoUrl;
+            img.alt = name;
+            img.className = 'user-avatar-img';
+            avatarEl.appendChild(img);
+        } else {
+            avatarEl.innerHTML = '👤';
+            avatarEl.classList.remove('has-img');
+        }
 
         const badge   = document.getElementById('sub-badge');
         const details = document.getElementById('sub-details');
