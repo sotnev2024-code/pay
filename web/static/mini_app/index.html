@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Подписка</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="browser-notice" class="browser-notice hidden">
+            <p>Откройте этот бот в Telegram и нажмите «Оформить подписку», чтобы пользоваться приложением.</p>
+        </div>
+        <!-- Screen: Loading -->
+        <div id="screen-loading" class="screen active">
+            <div class="loader-container">
+                <div class="loader"></div>
+                <p>Загрузка...</p>
+            </div>
+        </div>
+
+        <!-- Screen: User Card -->
+        <div id="screen-profile" class="screen">
+            <div class="user-card">
+                <div class="user-avatar" id="user-avatar">👤</div>
+                <div class="user-info">
+                    <h2 id="user-name">Пользователь</h2>
+                    <span class="badge" id="sub-badge">Нет подписки</span>
+                </div>
+            </div>
+            <div id="sub-details" class="sub-details hidden">
+                <div class="progress-section">
+                    <div class="progress-labels">
+                        <span id="sub-tariff-name">Тариф</span>
+                        <span id="sub-days-left">0 дн.</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="sub-progress"></div>
+                    </div>
+                    <p class="sub-expires" id="sub-expires">Истекает: —</p>
+                </div>
+                <button class="btn btn-secondary" id="btn-goto-channel">
+                    🔗 Перейти в канал
+                </button>
+            </div>
+            <button class="btn btn-primary" id="btn-goto-tariffs">
+                🛒 Выбрать тариф
+            </button>
+        </div>
+
+        <!-- Screen: Tariff Grid -->
+        <div id="screen-tariffs" class="screen">
+            <h2 class="screen-title">Выберите тариф</h2>
+            <div id="tariff-grid" class="tariff-grid"></div>
+            <button class="btn btn-text" id="btn-back-profile">← Назад</button>
+        </div>
+
+        <!-- Screen: Payment -->
+        <div id="screen-payment" class="screen">
+            <h2 class="screen-title">Оплата</h2>
+
+            <div class="selected-tariff-card" id="selected-tariff-info"></div>
+
+            <div class="section">
+                <h3 class="section-title">Способ оплаты</h3>
+                <div id="provider-list" class="provider-list"></div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">Промокод</h3>
+                <div class="promo-row">
+                    <input type="text" id="promo-input" class="input" placeholder="Введите промокод">
+                    <button class="btn btn-small" id="btn-apply-promo">Применить</button>
+                </div>
+                <p class="promo-result hidden" id="promo-result"></p>
+            </div>
+
+            <div class="price-summary" id="price-summary">
+                <span>Итого:</span>
+                <span id="total-price">0</span>
+            </div>
+
+            <label class="checkbox-row">
+                <input type="checkbox" id="agree-checkbox">
+                <span>Я согласен с условиями обработки персональных данных</span>
+            </label>
+
+            <button class="btn btn-primary btn-pay" id="btn-pay" disabled>
+                💳 Оплатить
+            </button>
+
+            <button class="btn btn-text" id="btn-back-tariffs">← Назад к тарифам</button>
+        </div>
+
+        <!-- Modal: Success -->
+        <div id="modal-success" class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="success-icon">🎉</div>
+                <h2>Оплата прошла успешно!</h2>
+                <p id="success-tariff-name">Тариф активирован</p>
+                <a class="btn btn-primary" id="success-channel-link" href="#" target="_blank">
+                    🔗 Перейти в канал
+                </a>
+                <button class="btn btn-secondary" id="btn-close-modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

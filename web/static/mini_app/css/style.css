@@ -1,0 +1,493 @@
+/* ── Telegram Theme Variables ─────────────────────────────────── */
+:root {
+    --tg-bg: var(--tg-theme-bg-color, #ffffff);
+    --tg-text: var(--tg-theme-text-color, #000000);
+    --tg-hint: var(--tg-theme-hint-color, #999999);
+    --tg-link: var(--tg-theme-link-color, #2481cc);
+    --tg-btn: var(--tg-theme-button-color, #2481cc);
+    --tg-btn-text: var(--tg-theme-button-text-color, #ffffff);
+    --tg-secondary-bg: var(--tg-theme-secondary-bg-color, #f0f0f0);
+    --tg-header-bg: var(--tg-theme-header-bg-color, #ffffff);
+
+    --card-bg: var(--tg-secondary-bg);
+    --card-radius: 16px;
+    --gap: 12px;
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset & Base ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+                 Ubuntu, Cantarell, sans-serif;
+    background: var(--tg-bg);
+    color: var(--tg-text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+#app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+    padding-bottom: 32px;
+}
+
+/* ── Screens ─────────────────────────────────────────────────── */
+.screen {
+    display: none;
+    animation: fadeSlideIn var(--transition) forwards;
+}
+
+.screen.active { display: block; }
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Loading ─────────────────────────────────────────────────── */
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 60vh;
+    gap: 16px;
+    color: var(--tg-hint);
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--tg-secondary-bg);
+    border-top-color: var(--tg-btn);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── User Card ───────────────────────────────────────────────── */
+.user-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--card-radius);
+    margin-bottom: 16px;
+}
+
+.user-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--tg-btn);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.user-info h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--tg-hint);
+    color: #fff;
+}
+
+.badge.active {
+    background: #34c759;
+}
+
+.badge.expired {
+    background: #ff3b30;
+}
+
+/* ── Subscription Details ────────────────────────────────────── */
+.sub-details {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--card-radius);
+    margin-bottom: 16px;
+}
+
+.progress-section { margin-bottom: 12px; }
+
+.progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--tg-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--tg-btn);
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    width: 0%;
+}
+
+.sub-expires {
+    font-size: 12px;
+    color: var(--tg-hint);
+    margin-top: 6px;
+}
+
+/* ── Tariff Grid ─────────────────────────────────────────────── */
+.screen-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.tariff-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.tariff-card {
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    padding: 20px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color var(--transition), transform var(--transition);
+    position: relative;
+}
+
+.tariff-card:hover { transform: translateY(-2px); }
+
+.tariff-card.popular { border-color: var(--tg-btn); }
+
+.tariff-card .popular-badge {
+    position: absolute;
+    top: -10px;
+    right: 16px;
+    background: var(--tg-btn);
+    color: var(--tg-btn-text);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.tariff-card h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.tariff-card .tariff-desc {
+    font-size: 13px;
+    color: var(--tg-hint);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.tariff-features {
+    list-style: none;
+    margin-bottom: 14px;
+}
+
+.tariff-features li {
+    font-size: 13px;
+    padding: 3px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tariff-features li::before {
+    content: '✓';
+    color: #34c759;
+    font-weight: 700;
+}
+
+.tariff-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tariff-price-main {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--tg-btn);
+}
+
+.tariff-price-alt {
+    font-size: 13px;
+    color: var(--tg-hint);
+}
+
+.tariff-duration {
+    font-size: 12px;
+    color: var(--tg-hint);
+    margin-top: 4px;
+}
+
+/* ── Payment Screen ──────────────────────────────────────────── */
+.selected-tariff-card {
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.provider-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color var(--transition);
+}
+
+.provider-item.selected { border-color: var(--tg-btn); }
+
+.provider-icon { font-size: 24px; flex-shrink: 0; }
+
+.provider-label {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* ── Promo Code ──────────────────────────────────────────────── */
+.promo-row {
+    display: flex;
+    gap: 8px;
+}
+
+.input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1.5px solid var(--tg-secondary-bg);
+    border-radius: 12px;
+    background: var(--tg-bg);
+    color: var(--tg-text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.input:focus { border-color: var(--tg-btn); }
+
+.promo-result {
+    font-size: 13px;
+    margin-top: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.promo-result.success {
+    background: rgba(52, 199, 89, 0.1);
+    color: #34c759;
+}
+
+.promo-result.error {
+    background: rgba(255, 59, 48, 0.1);
+    color: #ff3b30;
+}
+
+/* ── Price Summary ───────────────────────────────────────────── */
+.price-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    font-size: 18px;
+    font-weight: 700;
+    border-top: 1px solid var(--tg-secondary-bg);
+    border-bottom: 1px solid var(--tg-secondary-bg);
+    margin-bottom: 16px;
+}
+
+/* ── Checkbox ────────────────────────────────────────────────── */
+.checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--tg-hint);
+    margin-bottom: 16px;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    accent-color: var(--tg-btn);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity var(--transition), transform var(--transition);
+    text-decoration: none;
+    text-align: center;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+    background: var(--tg-btn);
+    color: var(--tg-btn-text);
+}
+
+.btn-secondary {
+    background: var(--card-bg);
+    color: var(--tg-text);
+}
+
+.btn-small {
+    width: auto;
+    padding: 12px 20px;
+    font-size: 14px;
+    background: var(--tg-btn);
+    color: var(--tg-btn-text);
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-text {
+    background: none;
+    color: var(--tg-link);
+    font-size: 14px;
+    padding: 12px;
+}
+
+.btn-pay { margin-bottom: 8px; }
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Modal ───────────────────────────────────────────────────── */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    position: relative;
+    background: var(--tg-bg);
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    width: 100%;
+    max-width: 360px;
+    animation: modalSlideUp 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.success-icon { font-size: 56px; }
+
+.modal-content h2 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.modal-content p {
+    font-size: 14px;
+    color: var(--tg-hint);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(40px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Browser notice (when not in Telegram) ────────────────────── */
+.browser-notice {
+    background: var(--tg-link);
+    color: #fff;
+    padding: 12px 16px;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 12px;
+    border-radius: var(--card-radius);
+}
+.browser-notice.hidden { display: none !important; }
+
+/* ── Utilities ───────────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
