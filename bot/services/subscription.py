@@ -72,18 +72,41 @@ async def activate_subscription(
 async def deactivate_subscription(
     session: AsyncSession, bot: Bot, sub: Subscription
 ) -> None:
-    if sub.invite_link and sub.channel_id:
-        await revoke_invite_link(bot, sub.channel_id, sub.invite_link)
+    # Получаем пользователя заранее, чтобы знать его telegram_id
+    user = await session.get(User, sub.user_id)
 
+    # 1) Отзываем инвайт‑ссылку, чтобы по старой ссылке нельзя было войти
+    if sub.invite_link and sub.channel_id:
+        try:
+            await revoke_invite_link(bot, sub.channel_id, sub.invite_link)
+        except Exception as e:
+            logger.error("Failed to revoke invite link for sub %s: %s", sub.id, e)
+
+    # 2) Удаляем пользователя из канала/чата, если знаем его telegram_id и канал
+    if user and sub.channel_id:
+        try:
+            # Приём: баним и сразу разбаниваем, чтобы удалить участника и
+            # при этом не блокировать повторный вход при новой подписке.
+            await bot.ban_chat_member(sub.channel_id, user.telegram_id)
+            await bot.unban_chat_member(sub.channel_id, user.telegram_id)
+        except Exception as e:
+            logger.error(
+                "Failed to remove user %s from channel %s on expiry: %s",
+                user.telegram_id,
+                sub.channel_id,
+                e,
+            )
+
+    # 3) Помечаем подписку как истекшую в БД
     await crud.expire_subscription(session, sub.id)
 
-    try:
-        user = await session.get(User, sub.user_id)
-        if user:
+    # 4) Уведомляем пользователя
+    if user:
+        try:
             await bot.send_message(
                 user.telegram_id,
                 "⏰ <b>Ваша подписка истекла.</b>\n"
                 "Вы можете продлить её, нажав /subscribe",
             )
-    except Exception as e:
-        logger.error("Failed to notify user about expiry: %s", e)
+        except Exception as e:
+            logger.error("Failed to notify user about expiry: %s", e)

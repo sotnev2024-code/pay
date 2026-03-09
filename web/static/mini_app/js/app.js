@@ -213,16 +213,10 @@
             );
 
             if (result.pay_url) {
+                // Открываем страницу оплаты в новой вкладке/окне.
+                // Успех будет определяться только по возврату с параметрами
+                // status=success&pid=... и последующей проверке /api/payment/check.
                 window.open(result.pay_url, '_blank');
-                setTimeout(async () => {
-                    const profile = await API.getProfile();
-                    if (profile.subscription?.status === 'active') {
-                        Components.showSuccessModal(
-                            state.selectedTariff.name,
-                            profile.subscription.invite_link,
-                        );
-                    }
-                }, 5000);
             }
         } catch (e) {
             alert('Ошибка: ' + (e.message || 'Не удалось создать платёж'));

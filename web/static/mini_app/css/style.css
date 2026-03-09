@@ -462,6 +462,19 @@ body {
     gap: 12px;
 }
 
+.modal-consent-content {
+    max-height: 70vh;
+    text-align: left;
+}
+
+.modal-scrollable {
+    max-height: 50vh;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap; /* сохраняем переводы строк из текста */
+}
+
 .success-icon { font-size: 56px; }
 
 .modal-content h2 {
