@@ -202,6 +202,7 @@ async def handle_main_desc(message: Message, state: FSMContext) -> None:
     if not _is_admin(message.from_user.id):
         return
     async with async_session() as session:
+        # Сохраняем описание в виде HTML, чтобы сохранить форматирование
         html = message.html_text or message.text or ""
         await crud.update_main_menu_settings(session, description_html=html)
     await state.clear()
@@ -872,8 +873,10 @@ async def handle_broadcast_msg(message: Message, state: FSMContext) -> None:
     text = ""
     if message.photo:
         photo_file_id = message.photo[-1].file_id
+        # Фото с подписью – используем HTML-представление подписи
         text = message.html_caption or message.caption or ""
     else:
+        # Обычное текстовое сообщение – HTML-представление текста
         text = message.html_text or message.text or ""
     await state.update_data(broadcast_photo=photo_file_id, broadcast_text=text)
     await state.set_state(AdminStates.waiting_broadcast_audience)
