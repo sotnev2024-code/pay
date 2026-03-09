@@ -149,6 +149,7 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     buttons = [
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="📋 Главное меню", callback_data="admin_main_menu")],
+        [InlineKeyboardButton(text="📄 Правила согласия", callback_data="admin_consent")],
         [
             InlineKeyboardButton(text="🏷 Тарифы", callback_data="admin_tariffs"),
             InlineKeyboardButton(text="🎟 Промокоды", callback_data="admin_promos"),

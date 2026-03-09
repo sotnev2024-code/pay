@@ -77,6 +77,17 @@
 
         showScreen('profile');
 
+        // Загрузка правил согласия для модального окна
+        try {
+            const consent = await API.getConsent();
+            const box = document.getElementById('consent-text');
+            if (box && consent && consent.text_html) {
+                box.innerHTML = consent.text_html;
+            }
+        } catch (e) {
+            console.warn('Consent load failed:', e);
+        }
+
         // Если вернулись после оплаты (return_url с status=success&pid=...) — проверить платёж и обновить профиль
         var params = new URLSearchParams(window.location.search);
         var pid = params.get('pid') || params.get('payment_id');
@@ -228,6 +239,12 @@
     document.getElementById('btn-apply-promo').addEventListener('click', applyPromo);
     document.getElementById('btn-pay').addEventListener('click', handlePay);
     document.getElementById('agree-checkbox').addEventListener('change', updatePayButton);
+    document.getElementById('btn-open-consent').addEventListener('click', () => {
+        document.getElementById('modal-consent').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-consent').addEventListener('click', () => {
+        document.getElementById('modal-consent').classList.add('hidden');
+    });
     document.getElementById('btn-close-modal').addEventListener('click', () => {
         Components.hideSuccessModal();
         showScreen('profile');

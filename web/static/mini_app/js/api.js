@@ -29,6 +29,7 @@ const API = (() => {
         getTariffs:     ()              => _request('GET',  '/tariffs'),
         getProfile:     ()              => _request('GET',  '/profile'),
         getProviders:   ()              => _request('GET',  '/providers'),
+        getConsent:     ()              => _request('GET',  '/consent'),
         checkPayment:   (paymentId)     => _request('GET',  '/payment/check?payment_id=' + encodeURIComponent(paymentId)),
         validatePromo:  (code, tid)    => _request('POST', '/promo/validate', { code, tariff_id: tid }),
         createPayment:  (tariffId, provider, promoCode) =>

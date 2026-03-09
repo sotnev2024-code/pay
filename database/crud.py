@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from database.models import (
     AutoBroadcast,
     AutoBroadcastTriggerType,
+    ConsentRules,
     MainMenuButton,
     MainMenuSettings,
     Payment,
@@ -478,6 +479,33 @@ async def update_main_menu_button(
     await session.commit()
     await session.refresh(button)
     return button
+
+
+# ── Consent Rules ────────────────────────────────────────────────────
+
+
+async def get_consent_rules(session: AsyncSession) -> ConsentRules:
+    result = await session.execute(select(ConsentRules).limit(1))
+    row = result.scalar_one_or_none()
+    if row is None:
+        row = ConsentRules(text_html="")
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+    return row
+
+
+async def update_consent_rules(
+    session: AsyncSession,
+    **kwargs,
+) -> ConsentRules:
+    rules = await get_consent_rules(session)
+    for k, v in kwargs.items():
+        if hasattr(rules, k):
+            setattr(rules, k, v)
+    await session.commit()
+    await session.refresh(rules)
+    return rules
 
 
 # ── Auto Broadcasts ──────────────────────────────────────────────────

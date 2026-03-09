@@ -162,6 +162,16 @@ class MainMenuButton(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class ConsentRules(Base):
+    __tablename__ = "consent_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text_html: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AutoBroadcastTriggerType(str, enum.Enum):
     DAYS_BEFORE_EXPIRY = "days_before_expiry"
     AFTER_START_NO_PAYMENT = "after_start_no_payment"

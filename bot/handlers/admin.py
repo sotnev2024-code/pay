@@ -118,6 +118,8 @@ class AdminStates(StatesGroup):
     waiting_main_edit_url = State()
     waiting_main_edit_msg = State()
     waiting_main_edit_color = State()
+    # Consent rules
+    waiting_consent_text = State()
 
 
 def _is_admin(user_id: int) -> bool:
@@ -140,6 +142,66 @@ async def cb_admin_menu(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.edit_text("🔧 <b>Админ-панель</b>", reply_markup=admin_menu_kb())
     await callback.answer()
+
+
+@router.callback_query(F.data == "admin_consent")
+async def cb_admin_consent(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    async with async_session() as session:
+        rules = await crud.get_consent_rules(session)
+    preview = (rules.text_html or "").strip()
+    if not preview:
+        preview = "Правила согласия ещё не заданы."
+    else:
+        if len(preview) > 1000:
+            preview = preview[:1000] + "…"
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✏️ Изменить текст",
+                    callback_data="admin_consent_edit",
+                )
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_menu")],
+        ]
+    )
+    await callback.message.edit_text(
+        "📄 <b>Правила согласия</b>\n\nТекущий текст (превью):",
+        reply_markup=kb,
+    )
+    await callback.message.answer(preview, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin_consent_edit")
+async def cb_admin_consent_edit(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    await callback.message.edit_text(
+        "📄 Отправьте текст правил согласия.\n\n"
+        "Поддерживается форматирование HTML. Этот текст будет показан пользователю "
+        "в мини-приложении при нажатии на ссылку рядом с галочкой согласия.",
+        reply_markup=back_admin_kb(),
+    )
+    await state.set_state(AdminStates.waiting_consent_text)
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_consent_text, F.content_type.in_({"text", "photo"}))
+async def handle_consent_text(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    if message.photo:
+        html = message.html_caption or message.caption or ""
+    else:
+        html = message.html_text or message.text or ""
+    async with async_session() as session:
+        await crud.update_consent_rules(session, text_html=html or "")
+    await state.clear()
+    await message.answer("✅ Правила согласия обновлены.", reply_markup=admin_menu_kb())
 
 
 @router.callback_query(F.data == "admin_main_menu")

@@ -83,7 +83,12 @@
 
             <label class="checkbox-row">
                 <input type="checkbox" id="agree-checkbox">
-                <span>Я согласен с условиями обработки персональных данных</span>
+                <span>
+                    Я согласен с
+                    <button type="button" class="link-button" id="btn-open-consent">
+                        правилами и условиями
+                    </button>
+                </span>
             </label>
 
             <button class="btn btn-primary btn-pay" id="btn-pay" disabled>
@@ -91,6 +96,16 @@
             </button>
 
             <button class="btn btn-text" id="btn-back-tariffs">← Назад к тарифам</button>
+        </div>
+
+        <!-- Modal: Consent -->
+        <div id="modal-consent" class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content modal-consent-content">
+                <h2>Правила и условия</h2>
+                <div id="consent-text" class="modal-scrollable"></div>
+                <button class="btn btn-secondary" id="btn-close-consent">Закрыть</button>
+            </div>
         </div>
 
         <!-- Modal: Success -->

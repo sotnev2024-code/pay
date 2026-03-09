@@ -167,6 +167,17 @@ async def get_providers():
     return payment_manager.provider_display_info()
 
 
+@router.get("/consent")
+async def get_consent():
+    """Return HTML text for consent rules to show in Mini App."""
+    async with async_session() as session:
+        rules = await crud.get_consent_rules(session)
+        return {
+            "text_html": rules.text_html or "",
+            "updated_at": rules.updated_at.isoformat() if rules.updated_at else None,
+        }
+
+
 @router.get("/payment/check")
 async def check_payment(request: Request, payment_id: int):
     """When user returns from YooKassa (return_url), call this to sync payment and activate subscription if paid."""
