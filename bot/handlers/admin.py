@@ -202,7 +202,8 @@ async def handle_main_desc(message: Message, state: FSMContext) -> None:
     if not _is_admin(message.from_user.id):
         return
     async with async_session() as session:
-        await crud.update_main_menu_settings(session, description_html=message.text or "")
+        html = message.html_text or message.text or ""
+        await crud.update_main_menu_settings(session, description_html=html)
     await state.clear()
     await message.answer("✅ Описание обновлено.", reply_markup=admin_menu_kb())
 
@@ -871,10 +872,9 @@ async def handle_broadcast_msg(message: Message, state: FSMContext) -> None:
     text = ""
     if message.photo:
         photo_file_id = message.photo[-1].file_id
-    if message.caption:
-        text = message.caption
-    elif message.text:
-        text = message.text
+        text = message.html_caption or message.caption or ""
+    else:
+        text = message.html_text or message.text or ""
     await state.update_data(broadcast_photo=photo_file_id, broadcast_text=text)
     await state.set_state(AdminStates.waiting_broadcast_audience)
     await message.answer("Кому отправить?", reply_markup=broadcast_audience_kb())
@@ -1144,7 +1144,10 @@ async def handle_autob_msg(message: Message, state: FSMContext) -> None:
     if not _is_admin(message.from_user.id):
         return
     photo = message.photo[-1].file_id if message.photo else None
-    text = (message.caption or message.text or "")
+    if message.photo:
+        text = message.html_caption or message.caption or ""
+    else:
+        text = message.html_text or message.text or ""
     await state.update_data(autob_photo=photo, autob_text=text)
     await state.set_state(AdminStates.waiting_autob_delay_type)
     await message.answer("Через какое время отправить?", reply_markup=autob_delay_type_kb())
