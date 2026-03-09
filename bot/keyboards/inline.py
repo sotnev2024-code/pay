@@ -115,7 +115,7 @@ def admin_main_menu_kb() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="🖼 Изменить фото", callback_data="admin_main_photo")],
             [InlineKeyboardButton(text="📝 Изменить описание", callback_data="admin_main_desc")],
             [InlineKeyboardButton(text="🔘 Изменить название кнопки", callback_data="admin_main_btn")],
-            [InlineKeyboardButton(text="➕ Добавить кнопку", callback_data="admin_main_add_btn")],
+            [InlineKeyboardButton(text="🔘 Кнопки меню", callback_data="admin_main_buttons")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_menu")],
         ]
     )
@@ -161,6 +161,62 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="⏰ Авто-рассылки", callback_data="admin_auto_broadcast")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def admin_main_buttons_list_kb(buttons: list) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for b in buttons:
+        label = getattr(b, "label", "")
+        if not label:
+            continue
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"🔘 {label}",
+                    callback_data=f"main_btn_sel:{getattr(b, 'id', 0)}",
+                )
+            ]
+        )
+    rows.append(
+        [InlineKeyboardButton(text="➕ Добавить кнопку", callback_data="admin_main_add_btn")]
+    )
+    rows.append([InlineKeyboardButton(text="◀️ Назад", callback_data="admin_main_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def admin_main_button_actions_kb(button_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✏️ Изменить",
+                    callback_data=f"main_btn_edit:{button_id}",
+                ),
+                InlineKeyboardButton(
+                    text="🗑 Удалить",
+                    callback_data=f"main_btn_del:{button_id}",
+                ),
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_main_buttons")],
+        ]
+    )
+
+
+def main_btn_del_confirm_kb(button_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Да",
+                    callback_data=f"main_btn_del_confirm:{button_id}",
+                ),
+                InlineKeyboardButton(
+                    text="❌ Нет",
+                    callback_data=f"main_btn_sel:{button_id}",
+                ),
+            ]
+        ]
+    )
 
 
 def admin_tariff_actions_kb(tariff_id: int) -> InlineKeyboardMarkup:

@@ -466,6 +466,20 @@ async def delete_main_menu_button(session: AsyncSession, button_id: int) -> bool
     return True
 
 
+async def update_main_menu_button(
+    session: AsyncSession, button_id: int, **kwargs
+) -> Optional[MainMenuButton]:
+    button = await session.get(MainMenuButton, button_id)
+    if button is None:
+        return None
+    for k, v in kwargs.items():
+        if hasattr(button, k):
+            setattr(button, k, v)
+    await session.commit()
+    await session.refresh(button)
+    return button
+
+
 # ── Auto Broadcasts ──────────────────────────────────────────────────
 
 async def get_all_auto_broadcasts(session: AsyncSession) -> Sequence[AutoBroadcast]:

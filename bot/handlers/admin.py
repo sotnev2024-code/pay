@@ -13,6 +13,8 @@ from bot.bot_instance import bot
 from bot.keyboards.inline import (
     COLOR_EMOJI,
     admin_button_color_kb,
+    admin_main_button_actions_kb,
+    admin_main_buttons_list_kb,
     admin_main_menu_kb,
     admin_menu_kb,
     admin_promos_list_kb,
@@ -30,6 +32,7 @@ from bot.keyboards.inline import (
     broadcast_button_yn_kb,
     broadcast_confirm_kb,
     broadcast_url_skip_kb,
+    main_btn_del_confirm_kb,
     make_colored_button,
     promo_del_confirm_kb,
     promo_discount_type_kb,
@@ -49,6 +52,7 @@ from database import crud
 from database.engine import async_session
 from database.models import (
     AutoBroadcastTriggerType,
+    MainMenuButton,
     PaymentStatus,
     PromoCode,
     TariffType,
@@ -109,6 +113,11 @@ class AdminStates(StatesGroup):
     waiting_main_extra_msg = State()
     waiting_main_extra_label = State()
     waiting_main_extra_color = State()
+    # Main menu edit existing buttons
+    waiting_main_edit_label = State()
+    waiting_main_edit_url = State()
+    waiting_main_edit_msg = State()
+    waiting_main_edit_color = State()
 
 
 def _is_admin(user_id: int) -> bool:
@@ -153,6 +162,27 @@ async def cb_admin_main_menu(callback: CallbackQuery) -> None:
         )
     else:
         await callback.message.answer(text_preview[:4096], parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin_main_buttons")
+async def cb_admin_main_buttons(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    async with async_session() as session:
+        buttons = await crud.get_main_menu_buttons(session)
+    if not buttons:
+        text = (
+            "📋 <b>Кнопки главного меню</b>\n\n"
+            "Дополнительные кнопки ещё не добавлены.\n"
+            "Вы можете создать первую кнопку."
+        )
+    else:
+        text = "📋 <b>Кнопки главного меню</b>\n\nВыберите кнопку для редактирования или удаления:"
+    await callback.message.edit_text(
+        text,
+        reply_markup=admin_main_buttons_list_kb(list(buttons)),
+    )
     await callback.answer()
 
 
@@ -284,12 +314,8 @@ async def handle_main_extra_msg(message: Message, state: FSMContext) -> None:
     else:
         html = message.html_text or message.text or ""
     await state.update_data(main_extra_payload_html=html)
-    # Для message-кнопки можно не спрашивать явное название — возьмём по умолчанию
-    await state.set_state(AdminStates.waiting_main_extra_color)
-    await message.answer(
-        "Выберите цвет кнопки или оставьте без цвета:",
-        reply_markup=admin_button_color_kb(),
-    )
+    await state.set_state(AdminStates.waiting_main_extra_label)
+    await message.answer("Введите название кнопки:", reply_markup=back_admin_kb())
 
 
 @router.message(AdminStates.waiting_main_extra_label, F.text)
@@ -347,6 +373,196 @@ async def cb_admin_main_extra_color(callback: CallbackQuery, state: FSMContext) 
             )
     await state.clear()
     await callback.message.edit_text("✅ Кнопка добавлена в главное меню.", reply_markup=admin_main_menu_kb())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("main_btn_sel:"))
+async def cb_admin_main_btn_select(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    try:
+        _, raw_id = callback.data.split(":", 1)
+        btn_id = int(raw_id)
+    except (ValueError, IndexError):
+        await callback.answer("Некорректная кнопка.", show_alert=True)
+        return
+    async with async_session() as session:
+        btn = await session.get(MainMenuButton, btn_id)
+    if not btn or not btn.is_active:
+        await callback.answer("Кнопка не найдена.", show_alert=True)
+        return
+    type_label = "URL" if btn.type == "url" else "Сообщение"
+    text = (
+        f"🔘 <b>Кнопка:</b> {btn.label}\n"
+        f"Тип: {type_label}\n\n"
+        f"Выберите действие:"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=admin_main_button_actions_kb(btn.id),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("main_btn_del:"))
+async def cb_admin_main_btn_delete(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    try:
+        _, raw_id = callback.data.split(":", 1)
+        btn_id = int(raw_id)
+    except (ValueError, IndexError):
+        await callback.answer("Некорректная кнопка.", show_alert=True)
+        return
+    async with async_session() as session:
+        btn = await session.get(MainMenuButton, btn_id)
+    if not btn or not btn.is_active:
+        await callback.answer("Кнопка не найдена.", show_alert=True)
+        return
+    await callback.message.edit_text(
+        f"❓ Удалить кнопку «{btn.label}»?",
+        reply_markup=main_btn_del_confirm_kb(btn.id),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("main_btn_del_confirm:"))
+async def cb_admin_main_btn_delete_confirm(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    try:
+        _, raw_id = callback.data.split(":", 1)
+        btn_id = int(raw_id)
+    except (ValueError, IndexError):
+        await callback.answer("Некорректная кнопка.", show_alert=True)
+        return
+    async with async_session() as session:
+        await crud.delete_main_menu_button(session, btn_id)
+        buttons = await crud.get_main_menu_buttons(session)
+    await callback.message.edit_text(
+        "🗑 Кнопка удалена.\n\nТекущий список кнопок:",
+        reply_markup=admin_main_buttons_list_kb(list(buttons)),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("main_btn_edit:"))
+async def cb_admin_main_btn_edit(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    try:
+        _, raw_id = callback.data.split(":", 1)
+        btn_id = int(raw_id)
+    except (ValueError, IndexError):
+        await callback.answer("Некорректная кнопка.", show_alert=True)
+        return
+    async with async_session() as session:
+        btn = await session.get(MainMenuButton, btn_id)
+    if not btn or not btn.is_active:
+        await callback.answer("Кнопка не найдена.", show_alert=True)
+        return
+    await state.update_data(
+        edit_button_id=btn_id,
+        edit_button_type=btn.type,
+    )
+    await state.set_state(AdminStates.waiting_main_edit_label)
+    await callback.message.edit_text(
+        f"✏️ Текущее название: {btn.label}\n\nОтправьте новое название кнопки:",
+        reply_markup=back_admin_kb(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_main_edit_label, F.text)
+async def handle_main_edit_label(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    label = (message.text or "").strip()
+    if not label:
+        await message.answer("❌ Введите непустое название кнопки.")
+        return
+    await state.update_data(edit_label=label)
+    data = await state.get_data()
+    btn_type = data.get("edit_button_type")
+    if btn_type == "url":
+        await state.set_state(AdminStates.waiting_main_edit_url)
+        await message.answer(
+            "🔗 Отправьте новый URL для кнопки:",
+            reply_markup=back_admin_kb(),
+        )
+    else:
+        await state.set_state(AdminStates.waiting_main_edit_msg)
+        await message.answer(
+            "💬 Отправьте новое сообщение (поддерживается HTML), которое будет показываться при нажатии на кнопку:",
+            reply_markup=back_admin_kb(),
+        )
+
+
+@router.message(AdminStates.waiting_main_edit_url, F.text)
+async def handle_main_edit_url(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    url = (message.text or "").strip()
+    if not url:
+        await message.answer("❌ Введите непустой URL.")
+        return
+    await state.update_data(edit_url=url)
+    await state.set_state(AdminStates.waiting_main_edit_color)
+    await message.answer(
+        "Выберите цвет кнопки:",
+        reply_markup=admin_button_color_kb(),
+    )
+
+
+@router.message(AdminStates.waiting_main_edit_msg, F.content_type.in_({"text", "photo"}))
+async def handle_main_edit_msg(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    if message.photo:
+        html = message.html_caption or message.caption or ""
+    else:
+        html = message.html_text or message.text or ""
+    await state.update_data(edit_payload_html=html)
+    await state.set_state(AdminStates.waiting_main_edit_color)
+    await message.answer(
+        "Выберите цвет кнопки:",
+        reply_markup=admin_button_color_kb(),
+    )
+
+
+@router.callback_query(F.data.startswith("admin_color:"), StateFilter(AdminStates.waiting_main_edit_color))
+async def cb_admin_main_edit_color(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    color = callback.data.replace("admin_color:", "")
+    await state.update_data(edit_color=color)
+    data = await state.get_data()
+    btn_id = data.get("edit_button_id")
+    btn_type = data.get("edit_button_type")
+    label = data.get("edit_label")
+    async with async_session() as session:
+        if btn_type == "url":
+            await crud.update_main_menu_button(
+                session,
+                btn_id,
+                label=label,
+                url=data.get("edit_url"),
+                color=None if color == "none" else color,
+            )
+        else:
+            await crud.update_main_menu_button(
+                session,
+                btn_id,
+                label=label,
+                payload_html=data.get("edit_payload_html", ""),
+                color=None if color == "none" else color,
+            )
+        buttons = await crud.get_main_menu_buttons(session)
+    await state.clear()
+    await callback.message.edit_text(
+        "✅ Кнопка обновлена.\n\nТекущий список кнопок:",
+        reply_markup=admin_main_buttons_list_kb(list(buttons)),
+    )
     await callback.answer()
 
 
