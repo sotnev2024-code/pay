@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery, Message
 
 from bot.handlers.start import send_main_menu
 from bot.keyboards.inline import profile_kb
+from database import crud
 from database.crud import get_active_subscription, get_user_by_telegram_id
 from database.engine import async_session
 
@@ -34,8 +35,12 @@ async def _profile_text(telegram_id: int) -> str:
             else:
                 text += "Бессрочная подписка\n"
         else:
-            text += "\n❌ <b>Подписка не активна</b>\n"
-            text += "Оформите подписку, чтобы получить доступ."
+            tpl = await crud.get_text_template_by_key(session, "no_active_subscription")
+            if tpl and tpl.text_html:
+                text += "\n" + tpl.text_html
+            else:
+                text += "\n❌ <b>Подписка не активна</b>\n"
+                text += "Оформите подписку, чтобы получить доступ."
 
     return text
 

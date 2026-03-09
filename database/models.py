@@ -204,3 +204,16 @@ class SentAutoBroadcast(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     auto_broadcast_id: Mapped[int] = mapped_column(ForeignKey("auto_broadcasts.id"))
     sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class TextTemplate(Base):
+    __tablename__ = "text_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    text_html: Mapped[str] = mapped_column(Text, default="")
+    placeholders: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )

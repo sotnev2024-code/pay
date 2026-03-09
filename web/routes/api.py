@@ -259,6 +259,14 @@ async def create_payment(body: PaymentCreateRequest, request: Request):
         if tariff is None:
             raise HTTPException(404, "Тариф не найден")
 
+        # Бизнес-логика подписок:
+        # 1) Если уже есть бессрочная подписка — запрещаем покупку любых новых тарифов.
+        existing_sub = await crud.get_active_subscription(session, user.id)
+        if existing_sub and existing_sub.expires_at is None:
+            t = await crud.get_text_template_by_key(session, "lifetime_block")
+            msg = (t.text_html or "У вас уже есть бессрочная подписка. Покупка других тарифов недоступна.").strip()
+            raise HTTPException(400, msg)
+
         currency_map = {
             "stars": ("XTR", tariff.price_stars),
             "yookassa": ("RUB", tariff.price_rub),
@@ -309,7 +317,7 @@ async def create_payment(body: PaymentCreateRequest, request: Request):
             await crud.update_payment_status(
                 session,
                 db_payment.id,
-                crud.PaymentStatus.PENDING,
+                PaymentStatus.PENDING,
                 provider_payment_id=result.raw["provider_id"],
             )
 

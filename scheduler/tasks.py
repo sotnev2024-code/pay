@@ -18,44 +18,6 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-async def check_expiring_subscriptions() -> None:
-    """Notify users whose subscriptions expire in 3 days or 1 day."""
-    async with async_session() as session:
-        subs_3d = await crud.get_expiring_subscriptions(session, within_days=3)
-        for sub in subs_3d:
-            if sub.notified_3d:
-                continue
-            try:
-                days = (sub.expires_at.replace(tzinfo=timezone.utc) - datetime.now(timezone.utc)).days
-                if 1 < days <= 3:
-                    await bot.send_message(
-                        sub.user.telegram_id,
-                        f"⏳ Ваша подписка <b>{sub.tariff.name}</b> заканчивается "
-                        f"через <b>{days}</b> дн.\n\n"
-                        "Продлите подписку: /subscribe",
-                    )
-                    sub.notified_3d = True
-                    await session.commit()
-            except Exception as e:
-                logger.error("Notification error (3d): %s", e)
-
-        subs_1d = await crud.get_expiring_subscriptions(session, within_days=1)
-        for sub in subs_1d:
-            if sub.notified_1d:
-                continue
-            try:
-                await bot.send_message(
-                    sub.user.telegram_id,
-                    f"⚠️ Ваша подписка <b>{sub.tariff.name}</b> заканчивается "
-                    f"<b>завтра</b>!\n\n"
-                    "Продлите подписку, чтобы не потерять доступ: /subscribe",
-                )
-                sub.notified_1d = True
-                await session.commit()
-            except Exception as e:
-                logger.error("Notification error (1d): %s", e)
-
-
 async def expire_subscriptions() -> None:
     """Deactivate subscriptions that have passed their expiry date."""
     async with async_session() as session:
@@ -111,18 +73,27 @@ async def process_auto_broadcasts() -> None:
                 if not user:
                     continue
                 try:
+                    text = ab.message_text_html or "(пусто)"
+                    if ab.trigger_type == AutoBroadcastTriggerType.DAYS_BEFORE_EXPIRY:
+                        sub = await crud.get_subscription_expiring_in_days_for_user(
+                            session, uid, ab.trigger_value
+                        )
+                        if sub and sub.tariff:
+                            text = text.replace("{tariff_name}", sub.tariff.name)
+                        text = text.replace("{days}", str(ab.trigger_value))
+
                     if ab.message_photo_file_id:
                         await bot.send_photo(
                             user.telegram_id,
                             ab.message_photo_file_id,
-                            caption=ab.message_text_html or None,
+                            caption=text,
                             parse_mode="HTML",
                             reply_markup=kb,
                         )
                     else:
                         await bot.send_message(
                             user.telegram_id,
-                            ab.message_text_html or "(пусто)",
+                            text,
                             parse_mode="HTML",
                             reply_markup=kb,
                         )
@@ -132,7 +103,6 @@ async def process_auto_broadcasts() -> None:
 
 
 def start_scheduler() -> None:
-    scheduler.add_job(check_expiring_subscriptions, "interval", minutes=30, id="check_expiring")
     scheduler.add_job(expire_subscriptions, "interval", minutes=30, id="expire_subs")
     scheduler.add_job(process_auto_broadcasts, "interval", minutes=15, id="auto_broadcasts")
     scheduler.start()

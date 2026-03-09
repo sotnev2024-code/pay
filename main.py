@@ -43,6 +43,58 @@ async def _init_db() -> None:
     logger.info("Database tables created")
 
 
+async def _seed_default_text_templates() -> None:
+    """Create default text templates if missing."""
+    from database.engine import async_session
+    from database import crud
+
+    defaults = [
+        ("payment_success", "Сообщение после успешной оплаты", "🎉 <b>Оплата прошла успешно!</b>\n\nТариф: <b>{tariff_name}</b>\nСрок: <b>{duration_days}</b>\n\nНажмите кнопку ниже, чтобы перейти в канал:", "{tariff_name}, {duration_days}"),
+        ("payment_success_no_channel", "Сообщение после оплаты (без канала)", "🎉 <b>Оплата прошла успешно!</b>\n\nТариф: <b>{tariff_name}</b>\nДоступ активирован!", "{tariff_name}"),
+        ("subscription_expired", "Сообщение при истечении подписки", "⏰ <b>Ваша подписка истекла.</b>\nВы можете продлить её, нажав /subscribe", ""),
+        ("lifetime_block", "Ошибка: уже есть бессрочная подписка", "У вас уже есть бессрочная подписка. Покупка других тарифов недоступна.", ""),
+        ("renew_success", "Сообщение при успешном продлении", "✅ <b>Подписка продлена!</b>\n\nТариф: <b>{tariff_name}</b>\nНовая дата окончания: {expires_at}", "{tariff_name}, {expires_at}"),
+        ("no_active_subscription", "Нет активной подписки / предложение оформить", "❌ <b>Подписка не активна</b>\nОформите подписку, чтобы получить доступ.", ""),
+        ("payment_error", "Ошибка оплаты / платёж в ожидании", "Не удалось создать платёж. Попробуйте позже или обратитесь в поддержку.", ""),
+    ]
+    async with async_session() as session:
+        for key, title, text, placeholders in defaults:
+            existing = await crud.get_text_template_by_key(session, key)
+            if existing is None:
+                await crud.upsert_text_template(
+                    session, key=key, title=title, text_html=text,
+                    placeholders=placeholders if placeholders else None,
+                )
+    logger.info("Default text templates seeded")
+
+
+async def _seed_default_auto_broadcasts() -> None:
+    """Create built-in 3d and 1d expiry reminder auto broadcasts if missing."""
+    from database.engine import async_session
+    from database import crud
+    from database.models import AutoBroadcastTriggerType
+
+    async with async_session() as session:
+        for days, default_text in [
+            (3, "⏳ Ваша подписка <b>{tariff_name}</b> заканчивается через <b>{days}</b> дн.\n\nПродлите подписку: /subscribe"),
+            (1, "⚠️ Ваша подписка <b>{tariff_name}</b> заканчивается <b>завтра</b>!\n\nПродлите подписку, чтобы не потерять доступ: /subscribe"),
+        ]:
+            existing = await crud.get_auto_broadcast_by_trigger(
+                session, AutoBroadcastTriggerType.DAYS_BEFORE_EXPIRY, days
+            )
+            if existing is None:
+                await crud.create_auto_broadcast(
+                    session,
+                    trigger_type=AutoBroadcastTriggerType.DAYS_BEFORE_EXPIRY,
+                    trigger_value=days,
+                    delay_type="days",
+                    delay_value=0,
+                    message_text_html=default_text,
+                    is_active=True,
+                )
+    logger.info("Default auto broadcasts seeded")
+
+
 async def _seed_demo_tariffs() -> None:
     """Create demo tariffs if the table is empty (first run convenience)."""
     from database.engine import async_session
@@ -105,6 +157,8 @@ async def on_startup_webhook() -> None:
     logger.info("Webhook set to %s", webhook_url)
 
     start_scheduler()
+    await _seed_default_text_templates()
+    await _seed_default_auto_broadcasts()
     await _seed_demo_tariffs()
 
 
@@ -148,6 +202,8 @@ async def run_polling() -> None:
     await bot.delete_webhook(drop_pending_updates=True)
 
     start_scheduler()
+    await _seed_default_text_templates()
+    await _seed_default_auto_broadcasts()
     await _seed_demo_tariffs()
 
     # Start FastAPI in background (for Mini App API, if needed via ngrok)

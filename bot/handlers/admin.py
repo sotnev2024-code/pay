@@ -11,6 +11,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from bot.bot_instance import bot
 from bot.keyboards.inline import (
+    back_to_texts_kb,
     COLOR_EMOJI,
     admin_button_color_kb,
     admin_main_button_actions_kb,
@@ -107,6 +108,7 @@ class AdminStates(StatesGroup):
     waiting_autob_btn_color = State()
     waiting_autob_btn_url = State()
     waiting_autob_confirm = State()
+    waiting_autob_edit_msg = State()
     # Main menu extra buttons
     waiting_main_btn_kind = State()
     waiting_main_extra_url = State()
@@ -120,6 +122,8 @@ class AdminStates(StatesGroup):
     waiting_main_edit_color = State()
     # Consent rules
     waiting_consent_text = State()
+    # Edit text templates
+    waiting_text_edit = State()
 
 
 def _is_admin(user_id: int) -> bool:
@@ -202,6 +206,97 @@ async def handle_consent_text(message: Message, state: FSMContext) -> None:
         await crud.update_consent_rules(session, text_html=html or "")
     await state.clear()
     await message.answer("✅ Правила согласия обновлены.", reply_markup=admin_menu_kb())
+
+
+@router.callback_query(F.data == "admin_texts")
+async def cb_admin_texts(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    await state.clear()
+    async with async_session() as session:
+        templates = await crud.get_text_templates(session)
+    buttons = []
+    for t in templates:
+        buttons.append([
+            InlineKeyboardButton(text=f"📝 {t.title}", callback_data=f"admin_text_sel:{t.key}"),
+        ])
+    buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="admin_menu")])
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await callback.message.edit_text(
+        "📝 <b>Редактирование текстов</b>\n\nВыберите текст для редактирования.\n"
+        "Поддерживается HTML-форматирование (жирный, курсив, ссылки и т.д.):",
+        reply_markup=kb,
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin_text_sel:"))
+async def cb_admin_text_sel(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    key = callback.data.replace("admin_text_sel:", "")
+    async with async_session() as session:
+        t = await crud.get_text_template_by_key(session, key)
+    if not t:
+        await callback.answer("Шаблон не найден", show_alert=True)
+        return
+    await state.update_data(edit_text_key=key)
+    preview = (t.text_html or "").strip()
+    if len(preview) > 800:
+        preview = preview[:800] + "…"
+    hint = ""
+    if t.placeholders:
+        hint = f"\n\nПеременные: <code>{t.placeholders}</code>"
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✏️ Изменить", callback_data=f"admin_text_edit:{key}")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_texts")],
+        ]
+    )
+    await callback.message.edit_text(
+        f"📝 <b>{t.title}</b>{hint}\n\nТекущий текст:",
+        reply_markup=kb,
+    )
+    if preview:
+        await callback.message.answer(preview, parse_mode="HTML")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin_text_edit:"))
+async def cb_admin_text_edit(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    key = callback.data.replace("admin_text_edit:", "")
+    await state.update_data(edit_text_key=key)
+    await state.set_state(AdminStates.waiting_text_edit)
+    await callback.message.edit_text(
+        "📝 Отправьте новый текст (поддерживается HTML: <b>жирный</b>, <i>курсив</i>, ссылки и т.д.):",
+        reply_markup=back_to_texts_kb(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_text_edit, F.content_type.in_({"text", "photo"}))
+async def handle_text_edit(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    data = await state.get_data()
+    key = data.get("edit_text_key")
+    if not key:
+        await state.clear()
+        await message.answer("Ошибка. Вернитесь в админку.", reply_markup=admin_menu_kb())
+        return
+    if message.photo:
+        html = message.html_caption or message.caption or ""
+    else:
+        html = message.html_text or message.text or ""
+    async with async_session() as session:
+        t = await crud.get_text_template_by_key(session, key)
+        if t:
+            await crud.upsert_text_template(session, key=key, title=t.title, text_html=html or "")
+    await state.clear()
+    await message.answer("✅ Текст обновлён.", reply_markup=admin_menu_kb())
 
 
 @router.callback_query(F.data == "admin_main_menu")
@@ -1486,6 +1581,21 @@ async def cb_admin_auto_broadcast(callback: CallbackQuery, state: FSMContext) ->
     await callback.answer()
 
 
+def _autob_actions_kb(bid: int, is_active: bool) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✏️ Изменить текст", callback_data=f"autob_edit_msg:{bid}"),
+                InlineKeyboardButton(
+                    text="🔘 Выключить" if is_active else "✅ Включить",
+                    callback_data=f"autob_toggle:{bid}",
+                ),
+            ],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_auto_broadcast")],
+        ]
+    )
+
+
 @router.callback_query(F.data.startswith("autob_sel:"))
 async def cb_autob_sel(callback: CallbackQuery, state: FSMContext) -> None:
     if not _is_admin(callback.from_user.id):
@@ -1499,9 +1609,98 @@ async def cb_autob_sel(callback: CallbackQuery, state: FSMContext) -> None:
         return
     from bot.keyboards.inline import _auto_broadcast_trigger_label
     label = _auto_broadcast_trigger_label(b)
-    text = f"⏰ Рассылка #{b.id}\n\nТриггер: {label}\nЗадержка: {b.delay_value} {b.delay_type}\nАктивна: {'да' if b.is_active else 'нет'}"
-    await callback.message.edit_text(text, reply_markup=back_admin_kb())
+    preview = (b.message_text_html or "")[:500]
+    if len(b.message_text_html or "") > 500:
+        preview += "…"
+    text = (
+        f"⏰ Рассылка #{b.id}\n\n"
+        f"Триггер: {label}\n"
+        f"Задержка: {b.delay_value} {b.delay_type}\n"
+        f"Активна: {'да' if b.is_active else 'нет'}\n\n"
+        f"Текст: {preview or '(пусто)'}"
+    )
+    await callback.message.edit_text(text, reply_markup=_autob_actions_kb(bid, b.is_active))
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("autob_toggle:"))
+async def cb_autob_toggle(callback: CallbackQuery) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    bid = int(callback.data.split(":")[1])
+    async with async_session() as session:
+        b = await crud.get_auto_broadcast_by_id(session, bid)
+    if not b:
+        await callback.answer("Не найдено", show_alert=True)
+        return
+    async with async_session() as session:
+        await crud.update_auto_broadcast(session, bid, is_active=not b.is_active)
+        b = await crud.get_auto_broadcast_by_id(session, bid)
+    from bot.keyboards.inline import _auto_broadcast_trigger_label
+    label = _auto_broadcast_trigger_label(b)
+    preview = (b.message_text_html or "")[:500]
+    if len(b.message_text_html or "") > 500:
+        preview += "…"
+    text = (
+        f"⏰ Рассылка #{b.id}\n\n"
+        f"Триггер: {label}\n"
+        f"Задержка: {b.delay_value} {b.delay_type}\n"
+        f"Активна: {'да' if b.is_active else 'нет'}\n\n"
+        f"Текст: {preview or '(пусто)'}"
+    )
+    await callback.message.edit_text(text, reply_markup=_autob_actions_kb(bid, b.is_active))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("autob_edit_msg:"))
+async def cb_autob_edit_msg(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    bid = int(callback.data.split(":")[1])
+    await state.update_data(autob_edit_id=bid)
+    await state.set_state(AdminStates.waiting_autob_edit_msg)
+    await callback.message.edit_text(
+        "Отправьте новый текст рассылки (поддерживается HTML):",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="◀️ Назад", callback_data=f"autob_sel:{bid}")],
+            ]
+        ),
+    )
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_autob_edit_msg, F.content_type.in_({"text", "photo"}))
+async def handle_autob_edit_msg(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    data = await state.get_data()
+    bid = data.get("autob_edit_id")
+    if not bid:
+        await state.clear()
+        await message.answer("Ошибка.", reply_markup=admin_menu_kb())
+        return
+    if message.photo:
+        html = message.html_caption or message.caption or ""
+    else:
+        html = message.html_text or message.text or ""
+    async with async_session() as session:
+        await crud.update_auto_broadcast(session, bid, message_text_html=html or "")
+        b = await crud.get_auto_broadcast_by_id(session, bid)
+    await state.clear()
+    from bot.keyboards.inline import _auto_broadcast_trigger_label
+    label = _auto_broadcast_trigger_label(b)
+    preview = (b.message_text_html or "")[:500]
+    if len(b.message_text_html or "") > 500:
+        preview += "…"
+    text = (
+        f"⏰ Рассылка #{b.id}\n\n"
+        f"Триггер: {label}\n"
+        f"Задержка: {b.delay_value} {b.delay_type}\n"
+        f"Активна: {'да' if b.is_active else 'нет'}\n\n"
+        f"Текст обновлён: {preview or '(пусто)'}"
+    )
+    await message.answer(text, reply_markup=_autob_actions_kb(bid, b.is_active))
 
 
 @router.callback_query(F.data == "autob_add")

@@ -150,6 +150,7 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📊 Статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="📋 Главное меню", callback_data="admin_main_menu")],
         [InlineKeyboardButton(text="📄 Правила согласия", callback_data="admin_consent")],
+        [InlineKeyboardButton(text="📝 Редактирование текстов", callback_data="admin_texts")],
         [
             InlineKeyboardButton(text="🏷 Тарифы", callback_data="admin_tariffs"),
             InlineKeyboardButton(text="🎟 Промокоды", callback_data="admin_promos"),
@@ -525,6 +526,14 @@ def back_admin_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_menu")]
+        ]
+    )
+
+
+def back_to_texts_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_texts")]
         ]
     )
 

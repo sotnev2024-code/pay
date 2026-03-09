@@ -20,6 +20,7 @@ from database.models import (
     SubStatus,
     Subscription,
     Tariff,
+    TextTemplate,
     User,
 )
 
@@ -148,17 +149,41 @@ async def delete_tariff(session: AsyncSession, tariff_id: int) -> bool:
 async def get_active_subscription(
     session: AsyncSession, user_id: int
 ) -> Optional[Subscription]:
+    """
+    Вернуть «активную» подписку пользователя.
+
+    Приоритет:
+    1) Бессрочная подписка (expires_at is NULL)
+    2) Иначе — подписка с максимальным expires_at.
+    """
+    # 1) Бессрочная подписка, если есть
     stmt = (
         select(Subscription)
         .options(selectinload(Subscription.tariff))
         .where(
             Subscription.user_id == user_id,
             Subscription.status == SubStatus.ACTIVE,
+            Subscription.expires_at == None,  # noqa: E711
+        )
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    sub = result.scalars().first()
+    if sub:
+        return sub
+
+    # 2) Иначе — подписка с максимальным expires_at
+    stmt = (
+        select(Subscription)
+        .options(selectinload(Subscription.tariff))
+        .where(
+            Subscription.user_id == user_id,
+            Subscription.status == SubStatus.ACTIVE,
+            Subscription.expires_at != None,  # noqa: E711
         )
         .order_by(Subscription.expires_at.desc())
     )
     result = await session.execute(stmt)
-    # SQLAlchemy 2.x compatibility: use scalars().first() instead of scalar_first()
     return result.scalars().first()
 
 
@@ -508,6 +533,46 @@ async def update_consent_rules(
     return rules
 
 
+# ── Text Templates ────────────────────────────────────────────────────
+
+
+async def get_text_templates(session: AsyncSession) -> Sequence[TextTemplate]:
+    result = await session.execute(
+        select(TextTemplate).order_by(TextTemplate.key)
+    )
+    return result.scalars().all()
+
+
+async def get_text_template_by_key(
+    session: AsyncSession, key: str
+) -> Optional[TextTemplate]:
+    result = await session.execute(
+        select(TextTemplate).where(TextTemplate.key == key)
+    )
+    return result.scalars().first()
+
+
+async def upsert_text_template(
+    session: AsyncSession,
+    key: str,
+    title: str,
+    text_html: str = "",
+    placeholders: Optional[str] = None,
+) -> TextTemplate:
+    row = await get_text_template_by_key(session, key)
+    if row is None:
+        row = TextTemplate(key=key, title=title, text_html=text_html, placeholders=placeholders)
+        session.add(row)
+    else:
+        row.title = title
+        row.text_html = text_html
+        if placeholders is not None:
+            row.placeholders = placeholders
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
 # ── Auto Broadcasts ──────────────────────────────────────────────────
 
 async def get_all_auto_broadcasts(session: AsyncSession) -> Sequence[AutoBroadcast]:
@@ -515,6 +580,19 @@ async def get_all_auto_broadcasts(session: AsyncSession) -> Sequence[AutoBroadca
         select(AutoBroadcast).order_by(AutoBroadcast.id.desc())
     )
     return result.scalars().all()
+
+
+async def get_auto_broadcast_by_trigger(
+    session: AsyncSession,
+    trigger_type: AutoBroadcastTriggerType,
+    trigger_value: int,
+) -> Optional[AutoBroadcast]:
+    stmt = select(AutoBroadcast).where(
+        AutoBroadcast.trigger_type == trigger_type,
+        AutoBroadcast.trigger_value == trigger_value,
+    )
+    result = await session.execute(stmt)
+    return result.scalars().first()
 
 
 async def get_auto_broadcast_by_id(
@@ -587,6 +665,30 @@ async def get_user_ids_expiring_in_days(
     ).distinct()
     result = await session.execute(stmt)
     return [row[0] for row in result.all()]
+
+
+async def get_subscription_expiring_in_days_for_user(
+    session: AsyncSession, user_id: int, days: int
+) -> Optional[Subscription]:
+    """Get user's active subscription expiring in ~days (for personalization)."""
+    from sqlalchemy.orm import selectinload
+
+    now = datetime.now(timezone.utc)
+    start = now + timedelta(days=days)
+    end = start + timedelta(days=1)
+    stmt = (
+        select(Subscription)
+        .options(selectinload(Subscription.tariff))
+        .where(
+            Subscription.user_id == user_id,
+            Subscription.status == SubStatus.ACTIVE,
+            Subscription.expires_at >= start,
+            Subscription.expires_at < end,
+        )
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().first()
 
 
 async def get_user_ids_registered_before_no_payment(
