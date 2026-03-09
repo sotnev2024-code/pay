@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Sequence
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import (
     AutoBroadcast,
     AutoBroadcastTriggerType,
+    MainMenuButton,
     MainMenuSettings,
     Payment,
     PaymentStatus,
@@ -428,6 +429,41 @@ async def update_main_menu_settings(
     await session.commit()
     await session.refresh(settings_row)
     return settings_row
+
+
+# ── Main Menu Buttons ────────────────────────────────────────────────
+
+
+async def get_main_menu_buttons(session: AsyncSession) -> Sequence[MainMenuButton]:
+    stmt = (
+        select(MainMenuButton)
+        .where(MainMenuButton.is_active == True)  # noqa: E712
+        .order_by(MainMenuButton.sort_order, MainMenuButton.id)
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def create_main_menu_button(session: AsyncSession, **kwargs) -> MainMenuButton:
+    result = await session.execute(
+        select(func.max(MainMenuButton.sort_order))
+    )
+    max_sort = result.scalar_one_or_none() or 0
+    kwargs.setdefault("sort_order", max_sort + 1)
+    button = MainMenuButton(**kwargs)
+    session.add(button)
+    await session.commit()
+    await session.refresh(button)
+    return button
+
+
+async def delete_main_menu_button(session: AsyncSession, button_id: int) -> bool:
+    button = await session.get(MainMenuButton, button_id)
+    if button is None:
+        return False
+    button.is_active = False
+    await session.commit()
+    return True
 
 
 # ── Auto Broadcasts ──────────────────────────────────────────────────

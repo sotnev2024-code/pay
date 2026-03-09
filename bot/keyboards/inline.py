@@ -58,7 +58,10 @@ def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def main_menu_kb_from_settings(menu_settings: Any) -> InlineKeyboardMarkup:
+def main_menu_kb_from_settings(
+    menu_settings: Any,
+    extra_buttons: Optional[list[Any]] = None,
+) -> InlineKeyboardMarkup:
     btn_text = getattr(menu_settings, "button_text", "Оформить подписку")
     btn_color = getattr(menu_settings, "button_color", "green")
     text = _button_text_with_color(btn_text, btn_color)
@@ -74,6 +77,35 @@ def main_menu_kb_from_settings(menu_settings: Any) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="❓ Помощь", callback_data="help", style="danger")],
     ]
 
+    # Дополнительные кнопки главного меню (из БД)
+    if extra_buttons:
+        for btn in extra_buttons:
+            # ожидаем поля: type, label, url, color, id
+            b_type = getattr(btn, "type", None)
+            label = getattr(btn, "label", "")
+            color = getattr(btn, "color", None)
+            if not label or not b_type:
+                continue
+            if b_type == "url":
+                row = [
+                    make_colored_button(
+                        label,
+                        url=getattr(btn, "url", None),
+                        color_key=color,
+                    )
+                ]
+            elif b_type == "message":
+                row = [
+                    make_colored_button(
+                        label,
+                        callback_data=f"main_btn_msg:{getattr(btn, 'id', 0)}",
+                        color_key=color,
+                    )
+                ]
+            else:
+                continue
+            buttons.append(row)
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -83,6 +115,7 @@ def admin_main_menu_kb() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="🖼 Изменить фото", callback_data="admin_main_photo")],
             [InlineKeyboardButton(text="📝 Изменить описание", callback_data="admin_main_desc")],
             [InlineKeyboardButton(text="🔘 Изменить название кнопки", callback_data="admin_main_btn")],
+            [InlineKeyboardButton(text="➕ Добавить кнопку", callback_data="admin_main_add_btn")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="admin_menu")],
         ]
     )

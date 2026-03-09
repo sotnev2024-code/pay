@@ -2,7 +2,8 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
-from bot.keyboards.inline import main_menu_kb, profile_kb
+from bot.handlers.start import send_main_menu
+from bot.keyboards.inline import profile_kb
 from database.crud import get_active_subscription, get_user_by_telegram_id
 from database.engine import async_session
 
@@ -54,9 +55,10 @@ async def cb_profile(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "back_to_menu")
 async def cb_back_to_menu(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(
-        f"👋 Привет, <b>{callback.from_user.first_name}</b>!\n\n"
-        "Выберите действие:",
-        reply_markup=main_menu_kb(),
-    )
+    # Удаляем текущее сообщение и отправляем новое главное меню
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await send_main_menu(callback.message, callback.from_user.first_name)
     await callback.answer()

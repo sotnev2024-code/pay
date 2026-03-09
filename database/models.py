@@ -149,6 +149,19 @@ class MainMenuSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class MainMenuButton(Base):
+    __tablename__ = "main_menu_buttons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    type: Mapped[str] = mapped_column(String(20))  # "url" or "message"
+    label: Mapped[str] = mapped_column(String(255))
+    payload_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # logical color key
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class AutoBroadcastTriggerType(str, enum.Enum):
     DAYS_BEFORE_EXPIRY = "days_before_expiry"
     AFTER_START_NO_PAYMENT = "after_start_no_payment"

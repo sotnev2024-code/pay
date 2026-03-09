@@ -103,6 +103,12 @@ class AdminStates(StatesGroup):
     waiting_autob_btn_color = State()
     waiting_autob_btn_url = State()
     waiting_autob_confirm = State()
+    # Main menu extra buttons
+    waiting_main_btn_kind = State()
+    waiting_main_extra_url = State()
+    waiting_main_extra_msg = State()
+    waiting_main_extra_label = State()
+    waiting_main_extra_color = State()
 
 
 def _is_admin(user_id: int) -> bool:
@@ -186,6 +192,31 @@ async def cb_admin_main_btn(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "admin_main_add_btn")
+async def cb_admin_main_add_btn(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔗 URL кнопка", callback_data="admin_main_kind:url"),
+            ],
+            [
+                InlineKeyboardButton(text="💬 Сообщение", callback_data="admin_main_kind:msg"),
+            ],
+            [
+                InlineKeyboardButton(text="◀️ Назад", callback_data="admin_main_menu"),
+            ],
+        ]
+    )
+    await callback.message.edit_text(
+        "Что за кнопка?\n\nВыберите тип:",
+        reply_markup=kb,
+    )
+    await state.set_state(AdminStates.waiting_main_btn_kind)
+    await callback.answer()
+
+
 @router.message(AdminStates.waiting_main_photo, F.photo)
 async def handle_main_photo(message: Message, state: FSMContext) -> None:
     if not _is_admin(message.from_user.id):
@@ -207,6 +238,116 @@ async def handle_main_desc(message: Message, state: FSMContext) -> None:
         await crud.update_main_menu_settings(session, description_html=html)
     await state.clear()
     await message.answer("✅ Описание обновлено.", reply_markup=admin_menu_kb())
+
+
+@router.callback_query(F.data.startswith("admin_main_kind:"), StateFilter(AdminStates.waiting_main_btn_kind))
+async def cb_admin_main_kind(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    kind = callback.data.replace("admin_main_kind:", "")
+    if kind == "url":
+        await state.update_data(main_btn_kind="url")
+        await state.set_state(AdminStates.waiting_main_extra_url)
+        await callback.message.edit_text(
+            "🔗 Отправьте ссылку (URL) для кнопки:",
+            reply_markup=back_admin_kb(),
+        )
+    else:
+        await state.update_data(main_btn_kind="message")
+        await state.set_state(AdminStates.waiting_main_extra_msg)
+        await callback.message.edit_text(
+            "💬 Отправьте сообщение (поддерживается HTML), которое будет показываться при нажатии на кнопку:",
+            reply_markup=back_admin_kb(),
+        )
+    await callback.answer()
+
+
+@router.message(AdminStates.waiting_main_extra_url, F.text)
+async def handle_main_extra_url(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    url = (message.text or "").strip()
+    if not url:
+        await message.answer("❌ Введите непустой URL.")
+        return
+    await state.update_data(main_extra_url=url)
+    await state.set_state(AdminStates.waiting_main_extra_label)
+    await message.answer("Введите название кнопки:", reply_markup=back_admin_kb())
+
+
+@router.message(AdminStates.waiting_main_extra_msg, F.content_type.in_({"text", "photo"}))
+async def handle_main_extra_msg(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    if message.photo:
+        html = message.html_caption or message.caption or ""
+    else:
+        html = message.html_text or message.text or ""
+    await state.update_data(main_extra_payload_html=html)
+    # Для message-кнопки можно не спрашивать явное название — возьмём по умолчанию
+    await state.set_state(AdminStates.waiting_main_extra_color)
+    await message.answer(
+        "Выберите цвет кнопки или оставьте без цвета:",
+        reply_markup=admin_button_color_kb(),
+    )
+
+
+@router.message(AdminStates.waiting_main_extra_label, F.text)
+async def handle_main_extra_label(message: Message, state: FSMContext) -> None:
+    if not _is_admin(message.from_user.id):
+        return
+    label = (message.text or "").strip()
+    if not label:
+        await message.answer("❌ Введите непустое название кнопки.")
+        return
+    await state.update_data(main_extra_label=label)
+    await state.set_state(AdminStates.waiting_main_extra_color)
+    await message.answer(
+        "Выберите цвет кнопки или оставьте без цвета:",
+        reply_markup=admin_button_color_kb(),
+    )
+
+
+@router.callback_query(F.data.startswith("admin_color:"), StateFilter(AdminStates.waiting_main_extra_color))
+async def cb_admin_main_extra_color(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        return
+    color = callback.data.replace("admin_color:", "")
+    # color может быть 'green','red','blue','white' — для варианта \"без цвета\" можно добавить отдельную кнопку
+    await state.update_data(main_extra_color=color)
+    data = await state.get_data()
+    kind = data.get("main_btn_kind")
+    async with async_session() as session:
+        if kind == "url":
+            await crud.create_main_menu_button(
+                session,
+                type="url",
+                label=data.get("main_extra_label", "Кнопка"),
+                url=data.get("main_extra_url"),
+                payload_html=None,
+                color=None if color == "none" else color,
+            )
+        else:
+            # message button
+            payload_html = data.get("main_extra_payload_html", "")
+            # label: либо явное название, либо дефолт
+            label = data.get("main_extra_label")
+            if not label:
+                from html import unescape
+
+                plain = unescape(payload_html)
+                label = (plain or "Подробнее")[:32]
+            await crud.create_main_menu_button(
+                session,
+                type="message",
+                label=label,
+                url=None,
+                payload_html=payload_html,
+                color=None if color == "none" else color,
+            )
+    await state.clear()
+    await callback.message.edit_text("✅ Кнопка добавлена в главное меню.", reply_markup=admin_main_menu_kb())
+    await callback.answer()
 
 
 @router.message(AdminStates.waiting_main_btn_text, F.text)
