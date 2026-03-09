@@ -1,3 +1,5 @@
+from typing import Optional
+
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
@@ -16,7 +18,7 @@ DEFAULT_GREETING = (
 )
 
 
-async def send_main_menu(message: Message, first_name: str | None = None) -> None:
+async def send_main_menu(message: Message, first_name: Optional[str] = None) -> None:
     async with async_session() as session:
         menu = await crud.get_main_menu_settings(session)
         extra = await crud.get_main_menu_buttons(session)
