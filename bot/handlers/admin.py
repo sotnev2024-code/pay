@@ -291,7 +291,7 @@ async def cb_tariff_sel(callback: CallbackQuery, state: FSMContext) -> None:
     text = (
         f"🏷 <b>{tariff.name}</b>\n\n"
         f"Описание: {tariff.description or '—'}\n"
-        f"⭐ {tariff.price_stars} / {tariff.price_rub}₽ / ${tariff.price_usd}\n"
+        f"Цена: {tariff.price_rub}₽\n"
         f"Длительность: {tariff.duration_days or '∞'} дн.\n\n"
         "Выберите, что изменить:"
     )

@@ -83,7 +83,7 @@ const Components = (() => {
             }
 
             card.innerHTML = `
-                ${t === popular ? '<div class="popular-бadge">Популярное</div>' : ''}
+                ${t === popular ? '<div class="popular-badge">Популярное</div>' : ''}
                 <h3>${t.name}</h3>
                 <p class="tariff-desc">${t.description}</p>
                 ${featuresHtml}
