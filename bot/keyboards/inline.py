@@ -73,8 +73,6 @@ def main_menu_kb_from_settings(
                 color_key=btn_color,
             )
         ],
-        [InlineKeyboardButton(text="👤 Мой профиль", callback_data="profile")],
-        [InlineKeyboardButton(text="❓ Помощь", callback_data="help", style="danger")],
     ]
 
     # Дополнительные кнопки главного меню (из БД)
