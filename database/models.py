@@ -136,3 +136,48 @@ class PromoCode(Base):
         ForeignKey("tariffs.id"), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class MainMenuSettings(Base):
+    __tablename__ = "main_menu_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    photo_file_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    description_html: Mapped[str] = mapped_column(Text, default="")
+    button_text: Mapped[str] = mapped_column(String(255), default="Оформить подписку")
+    button_color: Mapped[str] = mapped_column(String(20), default="green")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class AutoBroadcastTriggerType(str, enum.Enum):
+    DAYS_BEFORE_EXPIRY = "days_before_expiry"
+    AFTER_START_NO_PAYMENT = "after_start_no_payment"
+    AFTER_PAYMENT_DAYS = "after_payment_days"
+
+
+class AutoBroadcast(Base):
+    __tablename__ = "auto_broadcasts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trigger_type: Mapped[AutoBroadcastTriggerType] = mapped_column(
+        Enum(AutoBroadcastTriggerType)
+    )
+    trigger_value: Mapped[int] = mapped_column(Integer, default=0)
+    delay_type: Mapped[str] = mapped_column(String(10), default="days")
+    delay_value: Mapped[int] = mapped_column(Integer, default=0)
+    message_photo_file_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    message_text_html: Mapped[str] = mapped_column(Text, default="")
+    button_text: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    button_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    button_color: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class SentAutoBroadcast(Base):
+    __tablename__ = "sent_auto_broadcasts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    auto_broadcast_id: Mapped[int] = mapped_column(ForeignKey("auto_broadcasts.id"))
+    sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

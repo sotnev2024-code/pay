@@ -76,6 +76,21 @@
         Components.renderProviderList(providers, onProviderSelect);
 
         showScreen('profile');
+
+        // Если вернулись после оплаты (return_url с status=success&pid=...) — проверить платёж и обновить профиль
+        var params = new URLSearchParams(window.location.search);
+        var pid = params.get('pid') || params.get('payment_id');
+        if (params.get('status') === 'success' && pid) {
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
+            try {
+                await API.checkPayment(pid);
+                await loadData();
+            } catch (e) {
+                console.warn('Payment check failed:', e);
+            }
+        }
     }
 
     // ── Tariff Selection ──────────────────────────────────────

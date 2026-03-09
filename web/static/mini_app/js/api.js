@@ -26,11 +26,12 @@ const API = (() => {
     }
 
     return {
-        getTariffs:   ()              => _request('GET',  '/tariffs'),
-        getProfile:   ()              => _request('GET',  '/profile'),
-        getProviders: ()              => _request('GET',  '/providers'),
-        validatePromo: (code, tid)    => _request('POST', '/promo/validate', { code, tariff_id: tid }),
-        createPayment: (tariffId, provider, promoCode) =>
+        getTariffs:     ()              => _request('GET',  '/tariffs'),
+        getProfile:     ()              => _request('GET',  '/profile'),
+        getProviders:   ()              => _request('GET',  '/providers'),
+        checkPayment:   (paymentId)     => _request('GET',  '/payment/check?payment_id=' + encodeURIComponent(paymentId)),
+        validatePromo:  (code, tid)    => _request('POST', '/promo/validate', { code, tariff_id: tid }),
+        createPayment:  (tariffId, provider, promoCode) =>
             _request('POST', '/payment/create', {
                 tariff_id: tariffId,
                 provider,

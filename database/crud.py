@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models import (
+    AutoBroadcast,
+    AutoBroadcastTriggerType,
+    MainMenuSettings,
     Payment,
     PaymentStatus,
     PromoCode,
+    SentAutoBroadcast,
     SubStatus,
     Subscription,
     Tariff,
@@ -61,6 +65,34 @@ async def count_users(session: AsyncSession) -> int:
     stmt = select(User)
     result = await session.execute(stmt)
     return len(result.scalars().all())
+
+
+async def get_user_ids_all(session: AsyncSession) -> List[int]:
+    result = await session.execute(select(User.telegram_id))
+    return [row[0] for row in result.all()]
+
+
+async def get_user_ids_paid(session: AsyncSession) -> List[int]:
+    stmt = select(User.telegram_id).where(
+        User.id.in_(select(Payment.user_id).where(Payment.status == PaymentStatus.SUCCESS))
+    ).distinct()
+    result = await session.execute(stmt)
+    return [row[0] for row in result.all()]
+
+
+async def get_user_ids_subscription_expired(session: AsyncSession) -> List[int]:
+    stmt = select(User.telegram_id).where(
+        User.id.in_(select(Subscription.user_id).where(Subscription.status == SubStatus.EXPIRED))
+    ).distinct()
+    result = await session.execute(stmt)
+    return [row[0] for row in result.all()]
+
+
+async def get_user_ids_never_paid(session: AsyncSession) -> List[int]:
+    subq = select(Payment.user_id).where(Payment.status == PaymentStatus.SUCCESS)
+    stmt = select(User.telegram_id).where(~User.id.in_(subq))
+    result = await session.execute(stmt)
+    return [row[0] for row in result.all()]
 
 
 # ── Tariffs ──────────────────────────────────────────────────────────
@@ -273,6 +305,20 @@ async def get_recent_payments(
     return result.scalars().all()
 
 
+async def get_payments_for_export(
+    session: AsyncSession, status: Optional[PaymentStatus] = PaymentStatus.SUCCESS
+) -> Sequence[Payment]:
+    stmt = (
+        select(Payment)
+        .options(selectinload(Payment.user), selectinload(Payment.tariff))
+        .order_by(Payment.created_at.desc())
+    )
+    if status is not None:
+        stmt = stmt.where(Payment.status == status)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
 async def get_revenue(
     session: AsyncSession, since: Optional[datetime] = None
 ) -> float:
@@ -327,3 +373,174 @@ async def get_all_promo_codes(session: AsyncSession) -> Sequence[PromoCode]:
     stmt = select(PromoCode).order_by(PromoCode.id.desc())
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+async def update_promo_code(
+    session: AsyncSession, promo_id: int, **kwargs
+) -> Optional[PromoCode]:
+    promo = await session.get(PromoCode, promo_id)
+    if promo is None:
+        return None
+    if "code" in kwargs and kwargs["code"]:
+        kwargs["code"] = str(kwargs["code"]).upper()
+    for k, v in kwargs.items():
+        if hasattr(promo, k):
+            setattr(promo, k, v)
+    await session.commit()
+    await session.refresh(promo)
+    return promo
+
+
+async def delete_promo_code(session: AsyncSession, promo_id: int) -> bool:
+    promo = await session.get(PromoCode, promo_id)
+    if promo is None:
+        return False
+    promo.is_active = False
+    await session.commit()
+    return True
+
+
+# ── Main Menu Settings ───────────────────────────────────────────────
+
+async def get_main_menu_settings(session: AsyncSession) -> MainMenuSettings:
+    result = await session.execute(select(MainMenuSettings).limit(1))
+    row = result.scalar_one_or_none()
+    if row is None:
+        row = MainMenuSettings(
+            description_html="",
+            button_text="Оформить подписку",
+            button_color="green",
+        )
+        session.add(row)
+        await session.commit()
+        await session.refresh(row)
+    return row
+
+
+async def update_main_menu_settings(
+    session: AsyncSession, **kwargs
+) -> MainMenuSettings:
+    settings_row = await get_main_menu_settings(session)
+    for k, v in kwargs.items():
+        if hasattr(settings_row, k):
+            setattr(settings_row, k, v)
+    await session.commit()
+    await session.refresh(settings_row)
+    return settings_row
+
+
+# ── Auto Broadcasts ──────────────────────────────────────────────────
+
+async def get_all_auto_broadcasts(session: AsyncSession) -> Sequence[AutoBroadcast]:
+    result = await session.execute(
+        select(AutoBroadcast).order_by(AutoBroadcast.id.desc())
+    )
+    return result.scalars().all()
+
+
+async def get_auto_broadcast_by_id(
+    session: AsyncSession, broadcast_id: int
+) -> Optional[AutoBroadcast]:
+    return await session.get(AutoBroadcast, broadcast_id)
+
+
+async def create_auto_broadcast(session: AsyncSession, **kwargs) -> AutoBroadcast:
+    obj = AutoBroadcast(**kwargs)
+    session.add(obj)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+
+async def update_auto_broadcast(
+    session: AsyncSession, broadcast_id: int, **kwargs
+) -> Optional[AutoBroadcast]:
+    obj = await session.get(AutoBroadcast, broadcast_id)
+    if obj is None:
+        return None
+    for k, v in kwargs.items():
+        if hasattr(obj, k):
+            setattr(obj, k, v)
+    await session.commit()
+    await session.refresh(obj)
+    return obj
+
+
+async def delete_auto_broadcast(session: AsyncSession, broadcast_id: int) -> bool:
+    obj = await session.get(AutoBroadcast, broadcast_id)
+    if obj is None:
+        return False
+    obj.is_active = False
+    await session.commit()
+    return True
+
+
+async def was_auto_broadcast_sent(
+    session: AsyncSession, user_id: int, auto_broadcast_id: int
+) -> bool:
+    stmt = select(SentAutoBroadcast).where(
+        SentAutoBroadcast.user_id == user_id,
+        SentAutoBroadcast.auto_broadcast_id == auto_broadcast_id,
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
+
+async def mark_auto_broadcast_sent(
+    session: AsyncSession, user_id: int, auto_broadcast_id: int
+) -> None:
+    rec = SentAutoBroadcast(user_id=user_id, auto_broadcast_id=auto_broadcast_id)
+    session.add(rec)
+    await session.commit()
+
+
+async def get_user_ids_expiring_in_days(
+    session: AsyncSession, days: int
+) -> List[int]:
+    """User IDs with active subscription expiring in exactly ~days (for auto broadcast)."""
+    now = datetime.now(timezone.utc)
+    start = now + timedelta(days=days)
+    end = start + timedelta(days=1)
+    stmt = select(Subscription.user_id).where(
+        Subscription.status == SubStatus.ACTIVE,
+        Subscription.expires_at >= start,
+        Subscription.expires_at < end,
+    ).distinct()
+    result = await session.execute(stmt)
+    return [row[0] for row in result.all()]
+
+
+async def get_user_ids_registered_before_no_payment(
+    session: AsyncSession, delay_hours: Optional[int] = None, delay_days: Optional[int] = None
+) -> List[int]:
+    """User IDs registered at least delay ago with no successful payment."""
+    now = datetime.now(timezone.utc)
+    if delay_hours is not None:
+        since = now - timedelta(hours=delay_hours)
+    elif delay_days is not None:
+        since = now - timedelta(days=delay_days)
+    else:
+        return []
+    subq = select(Payment.user_id).where(Payment.status == PaymentStatus.SUCCESS)
+    stmt = select(User.id).where(
+        User.created_at <= since,
+        ~User.id.in_(subq),
+    )
+    result = await session.execute(stmt)
+    return [row[0] for row in result.all()]
+
+
+async def get_user_ids_paid_days_ago(
+    session: AsyncSession, days: int, window_days: int = 1
+) -> List[int]:
+    """User IDs who had a successful payment approximately days ago."""
+    now = datetime.now(timezone.utc)
+    lo = now - timedelta(days=days + window_days)
+    hi = now - timedelta(days=max(0, days - window_days))
+    stmt = select(Payment.user_id).where(
+        Payment.status == PaymentStatus.SUCCESS,
+        Payment.created_at >= lo,
+        Payment.created_at <= hi,
+    ).distinct()
+    result = await session.execute(stmt)
+    return [row[0] for row in result.all()]

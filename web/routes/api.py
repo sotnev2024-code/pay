@@ -12,9 +12,12 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from bot.bot_instance import bot
+from bot.services.subscription import activate_subscription
 from config import settings
 from database import crud
 from database.engine import async_session
+from database.models import Payment, PaymentStatus
+from payments.base import PaymentStatusEnum
 from payments.manager import payment_manager
 
 logger = logging.getLogger(__name__)
@@ -162,6 +165,51 @@ async def get_profile(request: Request):
 @router.get("/providers")
 async def get_providers():
     return payment_manager.provider_display_info()
+
+
+@router.get("/payment/check")
+async def check_payment(request: Request, payment_id: int):
+    """When user returns from YooKassa (return_url), call this to sync payment and activate subscription if paid."""
+    try:
+        tg_user = _get_user_from_request(request)
+    except HTTPException:
+        return {"status": "error", "detail": "unauthorized"}
+
+    telegram_id = tg_user.get("id")
+    if not telegram_id:
+        return {"status": "error"}
+
+    async with async_session() as session:
+        user = await crud.get_user_by_telegram_id(session, telegram_id)
+        if user is None:
+            return {"status": "error"}
+
+        payment = await session.get(Payment, payment_id)
+        if payment is None or payment.user_id != user.id:
+            return {"status": "error"}
+
+        if payment.status == PaymentStatus.SUCCESS:
+            return {"status": "success"}
+
+        if payment.provider == "yookassa" and payment.provider_payment_id:
+            try:
+                provider = payment_manager.get("yookassa")
+                status = await provider.check_payment_status(payment.provider_payment_id)
+            except Exception as e:
+                logger.warning("Check payment status failed: %s", e)
+                return {"status": "pending"}
+
+            if status == PaymentStatusEnum.SUCCESS:
+                await crud.update_payment_status(
+                    session, payment.id, PaymentStatus.SUCCESS,
+                    provider_payment_id=payment.provider_payment_id,
+                )
+                await activate_subscription(
+                    session, bot, payment.user_id, payment.tariff_id, payment.id
+                )
+                return {"status": "success"}
+
+        return {"status": "pending"}
 
 
 @router.post("/promo/validate")

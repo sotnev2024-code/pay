@@ -51,19 +51,24 @@ class YooKassaProvider(PaymentProvider):
 
     async def verify_webhook(self, data: dict, headers: Optional[dict] = None) -> WebhookResult:
         obj = data.get("object", {})
-        metadata = obj.get("metadata", {})
+        metadata = obj.get("metadata") or {}
         yk_status = obj.get("status", "")
-
         status_map = {
             "succeeded": PaymentStatusEnum.SUCCESS,
             "canceled": PaymentStatusEnum.FAILED,
             "waiting_for_capture": PaymentStatusEnum.PENDING,
         }
 
+        raw_pid = metadata.get("payment_id")
+        try:
+            internal_payment_id = int(raw_pid) if raw_pid is not None else None
+        except (TypeError, ValueError):
+            internal_payment_id = None
+
         return WebhookResult(
             success=yk_status == "succeeded",
             provider_payment_id=obj.get("id"),
-            internal_payment_id=metadata.get("payment_id"),
+            internal_payment_id=internal_payment_id,
             status=status_map.get(yk_status, PaymentStatusEnum.PENDING),
             raw=data,
         )
