@@ -8,10 +8,41 @@ from config import settings
 
 COLOR_EMOJI = {"green": "🟢", "red": "🔴", "blue": "🔵", "white": "⚪"}
 
+# Logical color -> Telegram button color mapping
+COLOR_MAP: dict[str, Optional[str]] = {
+    "red": "danger",
+    "blue": "primary",
+    "green": "success",
+    # white / default: no explicit color, стандартный стиль
+    "white": None,
+}
+
 
 def _button_text_with_color(text: str, color: str) -> str:
     emoji = COLOR_EMOJI.get(color, "🟢")
     return f"{emoji} {text}"
+
+
+def make_colored_button(
+    text: str,
+    *,
+    callback_data: Optional[str] = None,
+    url: Optional[str] = None,
+    web_app: Optional[WebAppInfo] = None,
+    color_key: Optional[str] = None,
+) -> InlineKeyboardButton:
+    """
+    Create InlineKeyboardButton with logical color mapping.
+    color_key: one of 'green', 'red', 'blue', 'white'.
+    """
+    color = COLOR_MAP.get(color_key or "", None)
+    return InlineKeyboardButton(
+        text=text,
+        callback_data=callback_data,
+        url=url,
+        web_app=web_app,
+        color=color,  # type: ignore[arg-type]
+    )
 
 
 def main_menu_kb() -> InlineKeyboardMarkup:
@@ -31,7 +62,13 @@ def main_menu_kb_from_settings(menu_settings: Any) -> InlineKeyboardMarkup:
     btn_color = getattr(menu_settings, "button_color", "green")
     text = _button_text_with_color(btn_text, btn_color)
     buttons = [
-        [InlineKeyboardButton(text=text, web_app=WebAppInfo(url=settings.webapp_url))],
+        [
+            make_colored_button(
+                text,
+                web_app=WebAppInfo(url=settings.webapp_url),
+                color_key=btn_color,
+            )
+        ],
         [InlineKeyboardButton(text="👤 Мой профиль", callback_data="profile")],
         [InlineKeyboardButton(text="❓ Помощь", callback_data="help")],
     ]

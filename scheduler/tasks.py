@@ -4,10 +4,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 
 from bot.bot_instance import bot
-from bot.keyboards.inline import COLOR_EMOJI
+from bot.keyboards.inline import COLOR_EMOJI, make_colored_button
 from bot.services.subscription import deactivate_subscription
 from database import crud
 from database.engine import async_session
@@ -90,10 +90,20 @@ async def process_auto_broadcasts() -> None:
                 user_ids = await crud.get_user_ids_paid_days_ago(session, ab.trigger_value)
             kb = None
             if ab.button_text and ab.button_url:
-                emoji = COLOR_EMOJI.get(ab.button_color or "green", "🟢")
-                kb = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text=f"{emoji} {ab.button_text}", url=ab.button_url)],
-                ])
+                btn_color_key = ab.button_color or "green"
+                emoji = COLOR_EMOJI.get(btn_color_key, "🟢")
+                text = f"{emoji} {ab.button_text}"
+                kb = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            make_colored_button(
+                                text,
+                                url=ab.button_url,
+                                color_key=btn_color_key,
+                            )
+                        ]
+                    ]
+                )
             for uid in user_ids:
                 if await crud.was_auto_broadcast_sent(session, uid, ab.id):
                     continue

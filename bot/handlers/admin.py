@@ -17,19 +17,20 @@ from bot.keyboards.inline import (
     admin_menu_kb,
     admin_promos_list_kb,
     admin_tariffs_list_kb,
+    autob_add_confirm_kb,
+    autob_button_color_kb,
+    autob_button_yn_kb,
+    autob_delay_type_kb,
+    autob_trigger_kb,
+    autob_url_skip_kb,
+    auto_broadcast_list_kb,
     back_admin_kb,
     broadcast_audience_kb,
     broadcast_button_color_kb,
     broadcast_button_yn_kb,
-    autob_add_confirm_kb,
-    autob_delay_type_kb,
-    auto_broadcast_list_kb,
-    autob_button_color_kb,
-    autob_button_yn_kb,
-    autob_trigger_kb,
-    autob_url_skip_kb,
     broadcast_confirm_kb,
     broadcast_url_skip_kb,
+    make_colored_button,
     promo_del_confirm_kb,
     promo_discount_type_kb,
     promo_edit_fields_kb,
@@ -955,7 +956,8 @@ async def handle_broadcast_btn_url(message: Message, state: FSMContext) -> None:
 
 
 async def _broadcast_show_preview(message: Message, state: FSMContext) -> None:
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from aiogram.types import InlineKeyboardMarkup
+
     data = await state.get_data()
     photo = data.get("broadcast_photo")
     text = data.get("broadcast_text") or "(пусто)"
@@ -965,9 +967,17 @@ async def _broadcast_show_preview(message: Message, state: FSMContext) -> None:
         btn_color = data.get("broadcast_btn_color", "green")
         emoji = COLOR_EMOJI.get(btn_color, "🟢")
         url = data.get("broadcast_btn_url") or settings.webapp_url
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"{emoji} {btn_text}", url=url)],
-        ])
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    make_colored_button(
+                        f"{emoji} {btn_text}",
+                        url=url,
+                        color_key=btn_color,
+                    )
+                ]
+            ]
+        )
     else:
         kb = None
     if photo:
@@ -1000,14 +1010,23 @@ async def cb_broadcast_confirm(callback: CallbackQuery, state: FSMContext) -> No
     text = data.get("broadcast_text") or ""
     has_btn = data.get("broadcast_has_button")
     if has_btn:
-        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        from aiogram.types import InlineKeyboardMarkup
+
         btn_text = data.get("broadcast_btn_text", "Кнопка")
         btn_color = data.get("broadcast_btn_color", "green")
         emoji = COLOR_EMOJI.get(btn_color, "🟢")
         url = data.get("broadcast_btn_url") or settings.webapp_url
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"{emoji} {btn_text}", url=url)],
-        ])
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    make_colored_button(
+                        f"{emoji} {btn_text}",
+                        url=url,
+                        color_key=btn_color,
+                    )
+                ]
+            ]
+        )
     else:
         kb = None
     sent = 0
@@ -1220,7 +1239,8 @@ async def handle_autob_btn_url(message: Message, state: FSMContext) -> None:
 
 
 async def _autob_show_preview(message: Message, state: FSMContext) -> None:
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    from aiogram.types import InlineKeyboardMarkup
+
     data = await state.get_data()
     photo = data.get("autob_photo")
     text = data.get("autob_text") or "(пусто)"
@@ -1230,9 +1250,17 @@ async def _autob_show_preview(message: Message, state: FSMContext) -> None:
         btn_color = data.get("autob_btn_color", "green")
         emoji = COLOR_EMOJI.get(btn_color, "🟢")
         url = data.get("autob_btn_url") or settings.webapp_url
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=f"{emoji} {btn_text}", url=url)],
-        ])
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    make_colored_button(
+                        f"{emoji} {btn_text}",
+                        url=url,
+                        color_key=btn_color,
+                    )
+                ]
+            ]
+        )
     else:
         kb = None
     if photo:
