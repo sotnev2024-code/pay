@@ -34,14 +34,15 @@ def make_colored_button(
     """
     Create InlineKeyboardButton with logical color mapping.
     color_key: one of 'green', 'red', 'blue', 'white'.
+    Maps to Telegram InlineKeyboardButton.style.
     """
-    color = COLOR_MAP.get(color_key or "", None)
+    style = COLOR_MAP.get(color_key or "", None)
     return InlineKeyboardButton(
         text=text,
         callback_data=callback_data,
         url=url,
         web_app=web_app,
-        color=color,  # type: ignore[arg-type]
+        style=style,  # type: ignore[arg-type]
     )
 
 
@@ -70,8 +71,9 @@ def main_menu_kb_from_settings(menu_settings: Any) -> InlineKeyboardMarkup:
             )
         ],
         [InlineKeyboardButton(text="👤 Мой профиль", callback_data="profile")],
-        [InlineKeyboardButton(text="❓ Помощь", callback_data="help")],
+        [InlineKeyboardButton(text="❓ Помощь", callback_data="help", style="danger")],
     ]
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
