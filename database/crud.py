@@ -156,7 +156,8 @@ async def get_active_subscription(
         .order_by(Subscription.expires_at.desc())
     )
     result = await session.execute(stmt)
-    return result.scalar_first()
+    # SQLAlchemy 2.x compatibility: use scalars().first() instead of scalar_first()
+    return result.scalars().first()
 
 
 async def create_subscription(
