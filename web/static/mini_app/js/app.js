@@ -21,7 +21,7 @@
         promoDiscount: null,
     };
 
-    const currencySymbols = { XTR: '⭐', RUB: '₽', USD: '$', USDT: '$' };
+    const currencySymbols = { RUB: '₽' };
 
     // ── Navigation ────────────────────────────────────────────
 
@@ -121,22 +121,12 @@
     }
 
     function getAmountForProvider(tariff, providerName) {
-        const map = {
-            stars:     tariff.price_stars,
-            yookassa:  tariff.price_rub,
-            robokassa: tariff.price_rub,
-            prodamus:  tariff.price_rub,
-            cryptopay: tariff.price_usd,
-        };
-        return map[providerName] || tariff.price_rub;
+        // Сейчас используем только ЮKassa, сумма = цена в рублях
+        return tariff.price_rub;
     }
 
     function getCurrencyForProvider(providerName) {
-        const map = {
-            stars: 'XTR', yookassa: 'RUB', robokassa: 'RUB',
-            prodamus: 'RUB', cryptopay: 'USDT',
-        };
-        return map[providerName] || 'RUB';
+        return 'RUB';
     }
 
     function updatePrice() {
@@ -210,28 +200,16 @@
             );
 
             if (result.pay_url) {
-                if (state.selectedProvider.name === 'stars' && tg) {
-                    tg.openInvoice(result.pay_url, async (status) => {
-                        if (status === 'paid') {
-                            const profile = await API.getProfile();
-                            Components.showSuccessModal(
-                                state.selectedTariff.name,
-                                profile.subscription?.invite_link,
-                            );
-                        }
-                    });
-                } else {
-                    window.open(result.pay_url, '_blank');
-                    setTimeout(async () => {
-                        const profile = await API.getProfile();
-                        if (profile.subscription?.status === 'active') {
-                            Components.showSuccessModal(
-                                state.selectedTariff.name,
-                                profile.subscription.invite_link,
-                            );
-                        }
-                    }, 5000);
-                }
+                window.open(result.pay_url, '_blank');
+                setTimeout(async () => {
+                    const profile = await API.getProfile();
+                    if (profile.subscription?.status === 'active') {
+                        Components.showSuccessModal(
+                            state.selectedTariff.name,
+                            profile.subscription.invite_link,
+                        );
+                    }
+                }, 5000);
             }
         } catch (e) {
             alert('Ошибка: ' + (e.message || 'Не удалось создать платёж'));

@@ -83,14 +83,12 @@ const Components = (() => {
             }
 
             card.innerHTML = `
-                ${t === popular ? '<div class="popular-badge">Популярное</div>' : ''}
+                ${t === popular ? '<div class="popular-бadge">Популярное</div>' : ''}
                 <h3>${t.name}</h3>
                 <p class="tariff-desc">${t.description}</p>
                 ${featuresHtml}
                 <div class="tariff-price-row">
-                    <span class="tariff-price-main">⭐ ${t.price_stars}</span>
-                    <span class="tariff-price-alt">${t.price_rub}₽</span>
-                    <span class="tariff-price-alt">$${t.price_usd}</span>
+                    <span class="tariff-price-main">${t.price_rub}₽</span>
                 </div>
                 <p class="tariff-duration">${t.duration_days ? t.duration_days + ' дней' : 'Разовый доступ'}</p>
             `;

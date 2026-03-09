@@ -44,10 +44,6 @@ payment_manager = PaymentManager()
 
 def init_providers() -> None:
     """Register all providers whose credentials are present in .env."""
-    from payments.stars import StarsProvider
-
-    payment_manager.register(StarsProvider())
-
     if settings.yookassa_enabled:
         from payments.yookassa_provider import YooKassaProvider
         payment_manager.register(YooKassaProvider())

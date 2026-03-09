@@ -81,7 +81,7 @@ class Settings(BaseSettings):
         return bool(self.cryptopay_api_token)
 
     def active_providers(self) -> List[str]:
-        providers = ["stars"]
+        providers: List[str] = []
         if self.yookassa_enabled:
             providers.append("yookassa")
         if self.robokassa_enabled:
